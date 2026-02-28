@@ -101,6 +101,7 @@ export function useLiveSession() {
           setAiState("listening");
         },
         onError: (err) => {
+          if (clientRef.current !== client) return;
           console.error("Live session error:", err);
           stopMic();
           stopCamera();
@@ -113,6 +114,7 @@ export function useLiveSession() {
           setAiState("idle");
         },
         onClose: () => {
+          if (clientRef.current !== client) return;
           stopMic();
           stopCamera();
           stopPlayback();
