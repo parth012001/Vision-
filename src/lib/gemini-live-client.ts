@@ -12,21 +12,24 @@ export type LiveEventHandler = {
   onOpen?: () => void;
 };
 
-/**
- * Manages a Gemini Live API session.
- * Connects via @google/genai SDK's live.connect, sends audio/video,
- * and dispatches received audio/text to handlers.
- */
 export class GeminiLiveClient {
   private session: Session | null = null;
   private handlers: LiveEventHandler;
   private apiKey: string;
+  private connected = false;
+  private connectGeneration = 0;
+  private pendingReject: ((err: Error) => void) | null = null;
 
   constructor(apiKey: string, handlers: LiveEventHandler) {
     this.apiKey = apiKey;
     this.handlers = handlers;
   }
 
+  /**
+   * Connect to the Gemini Live API. The returned Promise resolves
+   * only after the WebSocket is fully open and the session is ready
+   * to accept audio/video input.
+   */
   async connect(systemInstruction: string): Promise<void> {
     const ai = new GoogleGenAI({ apiKey: this.apiKey });
 
@@ -44,23 +47,75 @@ export class GeminiLiveClient {
       outputAudioTranscription: {},
     };
 
-    this.session = await ai.live.connect({
-      model: LIVE_MODEL,
-      config,
-      callbacks: {
-        onopen: () => {
-          this.handlers.onOpen?.();
-        },
-        onmessage: (msg: LiveServerMessage) => {
-          this.handleMessage(msg);
-        },
-        onerror: (e: ErrorEvent) => {
-          this.handlers.onError?.(new Error(e?.message || "WebSocket error"));
-        },
-        onclose: () => {
-          this.handlers.onClose?.();
-        },
-      },
+    // Bump generation so any in-flight connect from a previous call
+    // becomes stale and its callbacks are ignored.
+    const generation = ++this.connectGeneration;
+    const isStale = () => generation !== this.connectGeneration;
+
+    return new Promise<void>((resolve, reject) => {
+      let settled = false;
+      this.pendingReject = (err: Error) => {
+        if (!settled) {
+          settled = true;
+          reject(err);
+        }
+      };
+
+      ai.live
+        .connect({
+          model: LIVE_MODEL,
+          config,
+          callbacks: {
+            onopen: () => {
+              if (isStale()) return;
+              this.connected = true;
+              this.handlers.onOpen?.();
+              if (!settled) {
+                settled = true;
+                this.pendingReject = null;
+                resolve();
+              }
+            },
+            onmessage: (msg: LiveServerMessage) => {
+              if (isStale()) return;
+              this.handleMessage(msg);
+            },
+            onerror: (e: ErrorEvent) => {
+              if (isStale()) return;
+              const error = new Error(e?.message || "WebSocket error");
+              this.handlers.onError?.(error);
+              if (!settled) {
+                settled = true;
+                reject(error);
+              }
+            },
+            onclose: () => {
+              if (isStale()) return;
+              this.connected = false;
+              this.session = null;
+              this.handlers.onClose?.();
+              if (!settled) {
+                settled = true;
+                reject(new Error("Connection closed before it opened"));
+              }
+            },
+          },
+        })
+        .then((session) => {
+          if (isStale()) {
+            // Connection completed but we've since disconnected or
+            // started a new connection — close the orphaned session.
+            session.close();
+            return;
+          }
+          this.session = session;
+        })
+        .catch((err) => {
+          if (!settled) {
+            settled = true;
+            reject(err);
+          }
+        });
     });
   }
 
@@ -69,15 +124,17 @@ export class GeminiLiveClient {
 
     const msg = data as Record<string, unknown>;
 
-    // Handle server content (audio + text)
-    const serverContent = msg.serverContent as Record<string, unknown> | undefined;
+    const serverContent = msg.serverContent as
+      | Record<string, unknown>
+      | undefined;
     if (serverContent) {
-      // Check for interruption
       if (serverContent.interrupted) {
         this.handlers.onInterrupted?.();
       }
 
-      const modelTurn = serverContent.modelTurn as Record<string, unknown> | undefined;
+      const modelTurn = serverContent.modelTurn as
+        | Record<string, unknown>
+        | undefined;
       if (modelTurn?.parts) {
         const parts = modelTurn.parts as Array<Record<string, unknown>>;
         for (const part of parts) {
@@ -85,7 +142,10 @@ export class GeminiLiveClient {
             this.handlers.onText?.(part.text as string);
           }
           if (part.inlineData) {
-            const inlineData = part.inlineData as { data: string; mimeType: string };
+            const inlineData = part.inlineData as {
+              data: string;
+              mimeType: string;
+            };
             if (inlineData.mimeType?.startsWith("audio/")) {
               this.handlers.onAudio?.(inlineData.data);
             }
@@ -97,42 +157,47 @@ export class GeminiLiveClient {
         this.handlers.onTurnComplete?.();
       }
 
-      // Handle output audio transcription
-      const outputTranscription = serverContent.outputTranscription as Record<string, unknown> | undefined;
+      const outputTranscription = serverContent.outputTranscription as
+        | Record<string, unknown>
+        | undefined;
       if (outputTranscription?.text) {
         this.handlers.onText?.(outputTranscription.text as string);
       }
     }
-
-    // Handle input transcription
-    const inputTranscription = (msg as Record<string, unknown>).inputTranscription as Record<string, unknown> | undefined;
-    if (inputTranscription?.text) {
-      // Could emit a separate event for user transcription if needed
-    }
   }
 
   sendAudio(base64Data: string) {
-    if (!this.session) return;
+    if (!this.session || !this.connected) return;
     const blob = { data: base64Data, mimeType: "audio/pcm;rate=16000" };
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     this.session.sendRealtimeInput({ audio: blob as any });
   }
 
   sendVideo(base64Data: string) {
-    if (!this.session) return;
+    if (!this.session || !this.connected) return;
     const blob = { data: base64Data, mimeType: "image/jpeg" };
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     this.session.sendRealtimeInput({ video: blob as any });
   }
 
   sendText(text: string) {
-    if (!this.session) return;
+    if (!this.session || !this.connected) return;
     this.session.sendClientContent({
       turns: [{ role: "user", parts: [{ text }] }],
     });
   }
 
   disconnect() {
+    // Bump generation to invalidate any in-flight connect handshake.
+    this.connectGeneration++;
+    this.connected = false;
+
+    // Reject any pending connect() Promise so the caller isn't left hanging.
+    if (this.pendingReject) {
+      this.pendingReject(new Error("Disconnected during handshake"));
+      this.pendingReject = null;
+    }
+
     if (this.session) {
       this.session.close();
       this.session = null;
@@ -140,6 +205,6 @@ export class GeminiLiveClient {
   }
 
   get isConnected(): boolean {
-    return this.session !== null;
+    return this.connected && this.session !== null;
   }
 }

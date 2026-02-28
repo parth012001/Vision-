@@ -1,5 +1,5 @@
-export const LIVE_MODEL = "gemini-2.0-flash-live-preview-04-09";
-export const ANALYZE_MODEL = "gemini-2.0-flash";
+export const LIVE_MODEL = "gemini-live-2.5-flash-preview";
+export const ANALYZE_MODEL = "gemini-2.5-flash";
 
 export const AUDIO_SAMPLE_RATE_INPUT = 16000;
 export const AUDIO_SAMPLE_RATE_OUTPUT = 24000;

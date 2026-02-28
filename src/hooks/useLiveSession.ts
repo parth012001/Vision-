@@ -19,22 +19,24 @@ export function useLiveSession() {
   const clientRef = useRef<GeminiLiveClient | null>(null);
   const currentTextRef = useRef<string>("");
 
-  // Audio playback
-  const { playChunk, stop: stopPlayback, resume: resumeAudio, cleanup: cleanupAudio, init: initAudio } =
-    useAudioPlayback({
-      onPlayingChange: (playing) => {
-        setAiState(playing ? "speaking" : "listening");
-      },
-    });
+  const {
+    playChunk,
+    stop: stopPlayback,
+    resume: resumeAudio,
+    cleanup: cleanupAudio,
+    init: initAudio,
+  } = useAudioPlayback({
+    onPlayingChange: (playing) => {
+      setAiState(playing ? "speaking" : "listening");
+    },
+  });
 
-  // Audio capture
   const { start: startMic, stop: stopMic } = useAudioCapture({
     onAudioData: useCallback((base64: string) => {
       clientRef.current?.sendAudio(base64);
     }, []),
   });
 
-  // Camera capture
   const { videoRef, start: startCamera, stop: stopCamera } = useCameraCapture({
     onFrame: useCallback((base64: string) => {
       clientRef.current?.sendVideo(base64);
@@ -59,23 +61,26 @@ export function useLiveSession() {
   );
 
   const connect = useCallback(async () => {
+    let client: GeminiLiveClient | null = null;
+
     try {
       setStatus("connecting");
       setError(null);
 
-      // Fetch API key from server
+      // 1. Fetch API key from server
       const tokenRes = await fetch("/api/token", { method: "POST" });
       const { apiKey, error: tokenError } = await tokenRes.json();
       if (tokenError) throw new Error(tokenError);
 
-      // Initialize audio playback context (needs user gesture)
+      // 2. Initialize audio playback (needs user gesture context)
       initAudio();
       await resumeAudio();
 
-      const client = new GeminiLiveClient(apiKey, {
+      // 3. Create the client with event handlers
+      client = new GeminiLiveClient(apiKey, {
         onOpen: () => {
-          setStatus("connected");
-          setAiState("listening");
+          // Status is set after connect() resolves below,
+          // but this fires first to confirm WS is open.
         },
         onAudio: (base64Pcm) => {
           playChunk(base64Pcm);
@@ -96,11 +101,26 @@ export function useLiveSession() {
           setAiState("listening");
         },
         onError: (err) => {
+          if (clientRef.current !== client) return;
           console.error("Live session error:", err);
+          stopMic();
+          stopCamera();
+          stopPlayback();
+          cleanupAudio();
+          clientRef.current = null;
+          currentTextRef.current = "";
           setError(err.message);
           setStatus("error");
+          setAiState("idle");
         },
         onClose: () => {
+          if (clientRef.current !== client) return;
+          stopMic();
+          stopCamera();
+          stopPlayback();
+          cleanupAudio();
+          clientRef.current = null;
+          currentTextRef.current = "";
           setStatus("disconnected");
           setAiState("idle");
         },
@@ -108,16 +128,46 @@ export function useLiveSession() {
 
       clientRef.current = client;
 
+      // 4. Connect and wait for WebSocket to be fully open.
+      //    This Promise only resolves after onopen fires.
       const systemPrompt = buildSystemPrompt();
       await client.connect(systemPrompt);
 
-      // Start mic and camera
+      // 5. NOW the connection is confirmed open — safe to start media.
+      //    After each await, verify this attempt is still current.
+      //    disconnect() nulls clientRef, so a mismatch means we're stale.
+      if (clientRef.current !== client) {
+        client.disconnect();
+        return;
+      }
+      setStatus("connected");
+      setAiState("listening");
       await startMic();
+      if (clientRef.current !== client) {
+        stopMic();
+        client.disconnect();
+        return;
+      }
       await startCamera();
     } catch (err) {
       console.error("Connection failed:", err);
+
+      // Tear down anything that was partially started.
+      // Use the attempt-scoped client, not clientRef.current, to avoid
+      // accidentally disconnecting a newer session that took over the ref.
+      stopMic();
+      stopCamera();
+      stopPlayback();
+      client?.disconnect();
+      if (clientRef.current === client) {
+        clientRef.current = null;
+      }
+      cleanupAudio();
+      currentTextRef.current = "";
+
       setError(err instanceof Error ? err.message : "Connection failed");
       setStatus("error");
+      setAiState("idle");
     }
   }, [
     initAudio,
@@ -127,15 +177,19 @@ export function useLiveSession() {
     addTranscriptEntry,
     startMic,
     startCamera,
+    stopMic,
+    stopCamera,
+    cleanupAudio,
   ]);
 
   const disconnect = useCallback(() => {
-    clientRef.current?.disconnect();
-    clientRef.current = null;
     stopMic();
     stopCamera();
     stopPlayback();
+    clientRef.current?.disconnect();
+    clientRef.current = null;
     cleanupAudio();
+    currentTextRef.current = "";
     setStatus("disconnected");
     setAiState("idle");
   }, [stopMic, stopCamera, stopPlayback, cleanupAudio]);
@@ -155,13 +209,14 @@ export function useLiveSession() {
     setIsCameraOn((prev) => !prev);
   }, []);
 
-  // Cleanup on unmount
   useEffect(() => {
     return () => {
       clientRef.current?.disconnect();
+      clientRef.current = null;
       stopMic();
       stopCamera();
       cleanupAudio();
+      currentTextRef.current = "";
     };
   }, [stopMic, stopCamera, cleanupAudio]);
 
