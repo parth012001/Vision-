@@ -5,7 +5,7 @@ export const AUDIO_SAMPLE_RATE_INPUT = 16000;
 export const AUDIO_SAMPLE_RATE_OUTPUT = 24000;
 export const AUDIO_CHANNELS = 1;
 
-export const CAMERA_FPS = 1;
+export const CAMERA_FPS = 0.5;
 export const CAMERA_MAX_WIDTH = 1024;
 export const CAMERA_JPEG_QUALITY = 0.8;
 export const CAMERA_SNAP_QUALITY = 0.95;
