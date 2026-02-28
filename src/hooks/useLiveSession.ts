@@ -67,9 +67,9 @@ export function useLiveSession() {
       setStatus("connecting");
       setError(null);
 
-      // 1. Fetch API key from server
+      // 1. Fetch ephemeral token from server
       const tokenRes = await fetch("/api/token", { method: "POST" });
-      const { apiKey, error: tokenError } = await tokenRes.json();
+      const { token, error: tokenError } = await tokenRes.json();
       if (tokenError) throw new Error(tokenError);
 
       // 2. Initialize audio playback (needs user gesture context)
@@ -77,7 +77,7 @@ export function useLiveSession() {
       await resumeAudio();
 
       // 3. Create the client with event handlers
-      client = new GeminiLiveClient(apiKey, {
+      client = new GeminiLiveClient(token, {
         onOpen: () => {
           // Status is set after connect() resolves below,
           // but this fires first to confirm WS is open.
