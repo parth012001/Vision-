@@ -2,10 +2,10 @@
 
 import { useRef, useCallback } from "react";
 import { AUDIO_SAMPLE_RATE_INPUT } from "@/lib/constants";
-import { arrayBufferToBlob } from "@/lib/audio-utils";
+import { pcmToBase64 } from "@/lib/audio-utils";
 
 type AudioCaptureOptions = {
-  onAudioData: (blob: Blob) => void;
+  onAudioData: (base64: string) => void;
 };
 
 export function useAudioCapture({ onAudioData }: AudioCaptureOptions) {
@@ -37,13 +37,12 @@ export function useAudioCapture({ onAudioData }: AudioCaptureOptions) {
 
     workletNode.port.onmessage = (event) => {
       if (event.data.type === "pcm") {
-        const blob = arrayBufferToBlob(event.data.buffer, "audio/pcm");
-        onAudioData(blob);
+        const base64 = pcmToBase64(event.data.buffer);
+        onAudioData(base64);
       }
     };
 
     source.connect(workletNode);
-    // Don't connect to destination — we don't want to hear our own mic
   }, [onAudioData]);
 
   const stop = useCallback(() => {

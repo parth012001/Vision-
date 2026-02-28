@@ -111,16 +111,18 @@ export class GeminiLiveClient {
     }
   }
 
-  sendAudio(audioBlob: Blob) {
+  sendAudio(base64Data: string) {
     if (!this.session) return;
+    const blob = { data: base64Data, mimeType: "audio/pcm;rate=16000" };
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    this.session.sendRealtimeInput({ audio: audioBlob as any });
+    this.session.sendRealtimeInput({ audio: blob as any });
   }
 
-  sendVideo(videoBlob: Blob) {
+  sendVideo(base64Data: string) {
     if (!this.session) return;
+    const blob = { data: base64Data, mimeType: "image/jpeg" };
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    this.session.sendRealtimeInput({ video: videoBlob as any });
+    this.session.sendRealtimeInput({ video: blob as any });
   }
 
   sendText(text: string) {
