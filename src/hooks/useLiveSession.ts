@@ -61,6 +61,8 @@ export function useLiveSession() {
   );
 
   const connect = useCallback(async () => {
+    let client: GeminiLiveClient | null = null;
+
     try {
       setStatus("connecting");
       setError(null);
@@ -75,7 +77,7 @@ export function useLiveSession() {
       await resumeAudio();
 
       // 3. Create the client with event handlers
-      const client = new GeminiLiveClient(apiKey, {
+      client = new GeminiLiveClient(apiKey, {
         onOpen: () => {
           // Status is set after connect() resolves below,
           // but this fires first to confirm WS is open.
@@ -132,12 +134,16 @@ export function useLiveSession() {
       // 5. NOW the connection is confirmed open — safe to start media.
       //    After each await, verify this attempt is still current.
       //    disconnect() nulls clientRef, so a mismatch means we're stale.
-      if (clientRef.current !== client) return;
+      if (clientRef.current !== client) {
+        client.disconnect();
+        return;
+      }
       setStatus("connected");
       setAiState("listening");
       await startMic();
       if (clientRef.current !== client) {
         stopMic();
+        client.disconnect();
         return;
       }
       await startCamera();
@@ -145,11 +151,15 @@ export function useLiveSession() {
       console.error("Connection failed:", err);
 
       // Tear down anything that was partially started.
+      // Use the attempt-scoped client, not clientRef.current, to avoid
+      // accidentally disconnecting a newer session that took over the ref.
       stopMic();
       stopCamera();
       stopPlayback();
-      clientRef.current?.disconnect();
-      clientRef.current = null;
+      client?.disconnect();
+      if (clientRef.current === client) {
+        clientRef.current = null;
+      }
       cleanupAudio();
       currentTextRef.current = "";
 
