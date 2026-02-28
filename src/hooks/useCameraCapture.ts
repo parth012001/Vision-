@@ -3,10 +3,9 @@
 import { useRef, useCallback, useEffect } from "react";
 import { CAMERA_FPS } from "@/lib/constants";
 import { captureFrame } from "@/lib/camera-utils";
-import { base64ToBlob } from "@/lib/audio-utils";
 
 type CameraCaptureOptions = {
-  onFrame: (blob: Blob) => void;
+  onFrame: (base64: string) => void;
   enabled: boolean;
 };
 
@@ -39,8 +38,7 @@ export function useCameraCapture({ onFrame, enabled }: CameraCaptureOptions) {
       if (!videoRef.current) return;
       const base64 = captureFrame(videoRef.current);
       if (base64) {
-        const blob = base64ToBlob(base64, "image/jpeg");
-        onFrame(blob);
+        onFrame(base64);
       }
     }, 1000 / CAMERA_FPS);
   }, [onFrame]);
@@ -69,7 +67,6 @@ export function useCameraCapture({ onFrame, enabled }: CameraCaptureOptions) {
     }
   }, [enabled, startFrameCapture, stopFrameCapture]);
 
-  // Cleanup on unmount
   useEffect(() => {
     return () => {
       stop();

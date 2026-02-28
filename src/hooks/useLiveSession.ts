@@ -29,15 +29,15 @@ export function useLiveSession() {
 
   // Audio capture
   const { start: startMic, stop: stopMic } = useAudioCapture({
-    onAudioData: useCallback((blob: Blob) => {
-      clientRef.current?.sendAudio(blob);
+    onAudioData: useCallback((base64: string) => {
+      clientRef.current?.sendAudio(base64);
     }, []),
   });
 
   // Camera capture
   const { videoRef, start: startCamera, stop: stopCamera } = useCameraCapture({
-    onFrame: useCallback((blob: Blob) => {
-      clientRef.current?.sendVideo(blob);
+    onFrame: useCallback((base64: string) => {
+      clientRef.current?.sendVideo(base64);
     }, []),
     enabled: isCameraOn,
   });
