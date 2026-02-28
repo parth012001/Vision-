@@ -117,14 +117,31 @@ export function useLiveSession() {
       await client.connect(systemPrompt);
 
       // 5. NOW the connection is confirmed open — safe to start media.
+      //    After each await, verify this attempt is still current.
+      //    disconnect() nulls clientRef, so a mismatch means we're stale.
+      if (clientRef.current !== client) return;
       setStatus("connected");
       setAiState("listening");
       await startMic();
+      if (clientRef.current !== client) {
+        stopMic();
+        return;
+      }
       await startCamera();
     } catch (err) {
       console.error("Connection failed:", err);
+
+      // Tear down anything that was partially started.
+      stopMic();
+      stopCamera();
+      stopPlayback();
+      clientRef.current?.disconnect();
+      clientRef.current = null;
+      cleanupAudio();
+
       setError(err instanceof Error ? err.message : "Connection failed");
       setStatus("error");
+      setAiState("idle");
     }
   }, [
     initAudio,
@@ -134,6 +151,9 @@ export function useLiveSession() {
     addTranscriptEntry,
     startMic,
     startCamera,
+    stopMic,
+    stopCamera,
+    cleanupAudio,
   ]);
 
   const disconnect = useCallback(() => {

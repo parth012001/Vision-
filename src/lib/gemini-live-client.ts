@@ -17,6 +17,8 @@ export class GeminiLiveClient {
   private handlers: LiveEventHandler;
   private apiKey: string;
   private connected = false;
+  private connectGeneration = 0;
+  private pendingReject: ((err: Error) => void) | null = null;
 
   constructor(apiKey: string, handlers: LiveEventHandler) {
     this.apiKey = apiKey;
@@ -45,11 +47,19 @@ export class GeminiLiveClient {
       outputAudioTranscription: {},
     };
 
-    // Wrap in a Promise so the caller can await until onopen fires.
-    // This prevents the race condition where mic/camera start sending
-    // data before the WebSocket handshake completes.
+    // Bump generation so any in-flight connect from a previous call
+    // becomes stale and its callbacks are ignored.
+    const generation = ++this.connectGeneration;
+    const isStale = () => generation !== this.connectGeneration;
+
     return new Promise<void>((resolve, reject) => {
       let settled = false;
+      this.pendingReject = (err: Error) => {
+        if (!settled) {
+          settled = true;
+          reject(err);
+        }
+      };
 
       ai.live
         .connect({
@@ -57,17 +67,21 @@ export class GeminiLiveClient {
           config,
           callbacks: {
             onopen: () => {
+              if (isStale()) return;
               this.connected = true;
               this.handlers.onOpen?.();
               if (!settled) {
                 settled = true;
+                this.pendingReject = null;
                 resolve();
               }
             },
             onmessage: (msg: LiveServerMessage) => {
+              if (isStale()) return;
               this.handleMessage(msg);
             },
             onerror: (e: ErrorEvent) => {
+              if (isStale()) return;
               const error = new Error(e?.message || "WebSocket error");
               this.handlers.onError?.(error);
               if (!settled) {
@@ -76,6 +90,7 @@ export class GeminiLiveClient {
               }
             },
             onclose: () => {
+              if (isStale()) return;
               this.connected = false;
               this.session = null;
               this.handlers.onClose?.();
@@ -87,6 +102,12 @@ export class GeminiLiveClient {
           },
         })
         .then((session) => {
+          if (isStale()) {
+            // Connection completed but we've since disconnected or
+            // started a new connection — close the orphaned session.
+            session.close();
+            return;
+          }
           this.session = session;
         })
         .catch((err) => {
@@ -167,7 +188,16 @@ export class GeminiLiveClient {
   }
 
   disconnect() {
+    // Bump generation to invalidate any in-flight connect handshake.
+    this.connectGeneration++;
     this.connected = false;
+
+    // Reject any pending connect() Promise so the caller isn't left hanging.
+    if (this.pendingReject) {
+      this.pendingReject(new Error("Disconnected during handshake"));
+      this.pendingReject = null;
+    }
+
     if (this.session) {
       this.session.close();
       this.session = null;
