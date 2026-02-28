@@ -100,10 +100,23 @@ export function useLiveSession() {
         },
         onError: (err) => {
           console.error("Live session error:", err);
+          stopMic();
+          stopCamera();
+          stopPlayback();
+          cleanupAudio();
+          clientRef.current = null;
+          currentTextRef.current = "";
           setError(err.message);
           setStatus("error");
+          setAiState("idle");
         },
         onClose: () => {
+          stopMic();
+          stopCamera();
+          stopPlayback();
+          cleanupAudio();
+          clientRef.current = null;
+          currentTextRef.current = "";
           setStatus("disconnected");
           setAiState("idle");
         },
@@ -138,6 +151,7 @@ export function useLiveSession() {
       clientRef.current?.disconnect();
       clientRef.current = null;
       cleanupAudio();
+      currentTextRef.current = "";
 
       setError(err instanceof Error ? err.message : "Connection failed");
       setStatus("error");
@@ -163,6 +177,7 @@ export function useLiveSession() {
     clientRef.current?.disconnect();
     clientRef.current = null;
     cleanupAudio();
+    currentTextRef.current = "";
     setStatus("disconnected");
     setAiState("idle");
   }, [stopMic, stopCamera, stopPlayback, cleanupAudio]);
@@ -185,9 +200,11 @@ export function useLiveSession() {
   useEffect(() => {
     return () => {
       clientRef.current?.disconnect();
+      clientRef.current = null;
       stopMic();
       stopCamera();
       cleanupAudio();
+      currentTextRef.current = "";
     };
   }, [stopMic, stopCamera, cleanupAudio]);
 
