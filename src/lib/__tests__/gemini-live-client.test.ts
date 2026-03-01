@@ -53,13 +53,15 @@ describe("GeminiLiveClient", () => {
       onError: vi.fn(),
       onClose: vi.fn(),
       onOpen: vi.fn(),
+      onGoAway: vi.fn(),
+      onSessionResumptionUpdate: vi.fn(),
     };
   });
 
   describe("connect", () => {
     it("resolves after onopen fires", async () => {
       const client = new GeminiLiveClient("test-token", handlers);
-      const connectPromise = client.connect("system prompt");
+      const connectPromise = client.connect({ systemInstruction: "system prompt" });
 
       // Simulate SDK calling onopen then resolving the session
       capturedCallbacks.onopen();
@@ -72,7 +74,7 @@ describe("GeminiLiveClient", () => {
 
     it("rejects when onerror fires before onopen", async () => {
       const client = new GeminiLiveClient("test-token", handlers);
-      const connectPromise = client.connect("system prompt");
+      const connectPromise = client.connect({ systemInstruction: "system prompt" });
 
       capturedCallbacks.onerror({ message: "connection failed" });
 
@@ -82,7 +84,7 @@ describe("GeminiLiveClient", () => {
 
     it("rejects when onclose fires before onopen", async () => {
       const client = new GeminiLiveClient("test-token", handlers);
-      const connectPromise = client.connect("system prompt");
+      const connectPromise = client.connect({ systemInstruction: "system prompt" });
 
       capturedCallbacks.onclose();
 
@@ -93,7 +95,7 @@ describe("GeminiLiveClient", () => {
 
     it("rejects when SDK connect() promise rejects", async () => {
       const client = new GeminiLiveClient("test-token", handlers);
-      const connectPromise = client.connect("system prompt");
+      const connectPromise = client.connect({ systemInstruction: "system prompt" });
 
       connectReject(new Error("SDK connect failed"));
 
@@ -104,7 +106,7 @@ describe("GeminiLiveClient", () => {
   describe("disconnect during handshake", () => {
     it("rejects pending connect promise", async () => {
       const client = new GeminiLiveClient("test-token", handlers);
-      const connectPromise = client.connect("system prompt");
+      const connectPromise = client.connect({ systemInstruction: "system prompt" });
 
       client.disconnect();
 
@@ -115,7 +117,7 @@ describe("GeminiLiveClient", () => {
 
     it("closes orphaned session when connect completes after disconnect", async () => {
       const client = new GeminiLiveClient("test-token", handlers);
-      const connectPromise = client.connect("system prompt");
+      const connectPromise = client.connect({ systemInstruction: "system prompt" });
 
       client.disconnect();
 
@@ -134,14 +136,14 @@ describe("GeminiLiveClient", () => {
   describe("generation counter / stale callbacks", () => {
     it("ignores onopen from stale connection", async () => {
       const client = new GeminiLiveClient("test-token", handlers);
-      const firstConnect = client.connect("system prompt");
+      const firstConnect = client.connect({ systemInstruction: "system prompt" });
       const staleOnopen = capturedCallbacks.onopen;
 
       client.disconnect();
       await expect(firstConnect).rejects.toThrow();
 
       // Start a new connection
-      const secondConnect = client.connect("system prompt");
+      const secondConnect = client.connect({ systemInstruction: "system prompt" });
 
       // Fire onopen from the stale first connection — should be ignored
       staleOnopen();
@@ -157,7 +159,7 @@ describe("GeminiLiveClient", () => {
 
     it("ignores onmessage from stale connection", async () => {
       const client = new GeminiLiveClient("test-token", handlers);
-      const firstConnect = client.connect("system prompt");
+      const firstConnect = client.connect({ systemInstruction: "system prompt" });
       const staleOnmessage = capturedCallbacks.onmessage;
 
       client.disconnect();
@@ -177,7 +179,7 @@ describe("GeminiLiveClient", () => {
   describe("handleMessage", () => {
     async function createConnectedClient() {
       const client = new GeminiLiveClient("test-token", handlers);
-      const connectPromise = client.connect("system prompt");
+      const connectPromise = client.connect({ systemInstruction: "system prompt" });
       capturedCallbacks.onopen();
       connectResolve(mockSession);
       await connectPromise;
@@ -276,7 +278,7 @@ describe("GeminiLiveClient", () => {
   describe("sendAudio / sendVideo / sendText", () => {
     it("sends audio when connected", async () => {
       const client = new GeminiLiveClient("test-token", handlers);
-      const p = client.connect("system prompt");
+      const p = client.connect({ systemInstruction: "system prompt" });
       capturedCallbacks.onopen();
       connectResolve(mockSession);
       await p;
@@ -289,7 +291,7 @@ describe("GeminiLiveClient", () => {
 
     it("sends video when connected", async () => {
       const client = new GeminiLiveClient("test-token", handlers);
-      const p = client.connect("system prompt");
+      const p = client.connect({ systemInstruction: "system prompt" });
       capturedCallbacks.onopen();
       connectResolve(mockSession);
       await p;
@@ -302,7 +304,7 @@ describe("GeminiLiveClient", () => {
 
     it("sends text when connected", async () => {
       const client = new GeminiLiveClient("test-token", handlers);
-      const p = client.connect("system prompt");
+      const p = client.connect({ systemInstruction: "system prompt" });
       capturedCallbacks.onopen();
       connectResolve(mockSession);
       await p;
@@ -336,7 +338,7 @@ describe("GeminiLiveClient", () => {
   describe("disconnect", () => {
     it("closes session and sets isConnected to false", async () => {
       const client = new GeminiLiveClient("test-token", handlers);
-      const p = client.connect("system prompt");
+      const p = client.connect({ systemInstruction: "system prompt" });
       capturedCallbacks.onopen();
       connectResolve(mockSession);
       await p;

@@ -33,6 +33,8 @@ export function useLiveSession() {
   const wasConnectedRef = useRef(false);
   const reconnectTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const unmountedRef = useRef(false);
+  const resumptionHandleRef = useRef<string | undefined>(undefined);
+  const goAwayTriggeredRef = useRef(false);
 
   const {
     playChunk,
@@ -169,13 +171,33 @@ export function useLiveSession() {
               setAiState("idle");
             }
           },
+          onSessionResumptionUpdate: (handle, resumable) => {
+            if (resumable) {
+              resumptionHandleRef.current = handle;
+            }
+          },
+          onGoAway: () => {
+            if (!client || clientRef.current !== client) return;
+            goAwayTriggeredRef.current = true;
+            stopMic();
+            stopCamera();
+            stopPlayback();
+            cleanupAudio();
+            clientRef.current = null;
+            currentTextRef.current = "";
+            client.disconnect();
+            scheduleReconnect();
+          },
         });
 
         clientRef.current = client;
 
         // 4. Connect and wait for WebSocket to be fully open
         const systemPrompt = buildSystemPrompt();
-        await client.connect(systemPrompt);
+        await client.connect({
+          systemInstruction: systemPrompt,
+          resumptionHandle: resumptionHandleRef.current,
+        });
 
         // 5. Connection confirmed — start media
         if (clientRef.current !== client) {
@@ -234,6 +256,8 @@ export function useLiveSession() {
   // eslint-disable-next-line @typescript-eslint/no-use-before-define -- mutual recursion with connectInner handlers
   const scheduleReconnect = useCallback(async () => {
     const attemptGeneration = connectAttemptRef.current;
+    const isGoAway = goAwayTriggeredRef.current;
+    goAwayTriggeredRef.current = false;
 
     for (let attempt = 1; attempt <= RECONNECT_MAX_ATTEMPTS; attempt++) {
       if (userDisconnectedRef.current || unmountedRef.current) return;
@@ -242,8 +266,11 @@ export function useLiveSession() {
       setStatus("reconnecting");
       setAiState("idle");
 
-      const delay = RECONNECT_BASE_DELAY_MS * Math.pow(2, attempt - 1);
-      await sleep(delay);
+      // Skip delay on first attempt if triggered by GoAway (proactive reconnect)
+      if (!(isGoAway && attempt === 1)) {
+        const delay = RECONNECT_BASE_DELAY_MS * Math.pow(2, attempt - 1);
+        await sleep(delay);
+      }
 
       if (userDisconnectedRef.current || unmountedRef.current) return;
       if (connectAttemptRef.current !== attemptGeneration) return;
@@ -262,7 +289,8 @@ export function useLiveSession() {
       }
     }
 
-    // Exhausted all attempts
+    // Exhausted all attempts — clear stale handle
+    resumptionHandleRef.current = undefined;
     if (!userDisconnectedRef.current && !unmountedRef.current) {
       setError("Connection lost. Please try again.");
       setStatus("error");
@@ -273,6 +301,7 @@ export function useLiveSession() {
   const connect = useCallback(async () => {
     userDisconnectedRef.current = false;
     wasConnectedRef.current = false;
+    resumptionHandleRef.current = undefined;
 
     const localAttempt = connectAttemptRef.current;
 
@@ -290,6 +319,7 @@ export function useLiveSession() {
   const disconnect = useCallback(() => {
     userDisconnectedRef.current = true;
     wasConnectedRef.current = false;
+    resumptionHandleRef.current = undefined;
 
     // Clear any pending reconnect timeout
     if (reconnectTimeoutRef.current) {
@@ -328,6 +358,7 @@ export function useLiveSession() {
     unmountedRef.current = false;
     return () => {
       unmountedRef.current = true;
+      resumptionHandleRef.current = undefined;
       if (reconnectTimeoutRef.current) {
         clearTimeout(reconnectTimeoutRef.current);
         reconnectTimeoutRef.current = null;
