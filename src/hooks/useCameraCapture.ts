@@ -14,23 +14,6 @@ export function useCameraCapture({ onFrame, enabled }: CameraCaptureOptions) {
   const streamRef = useRef<MediaStream | null>(null);
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
-  const start = useCallback(async () => {
-    const stream = await navigator.mediaDevices.getUserMedia({
-      video: {
-        facingMode: "environment",
-        width: { ideal: 1280 },
-        height: { ideal: 720 },
-      },
-    });
-
-    streamRef.current = stream;
-
-    if (videoRef.current) {
-      videoRef.current.srcObject = stream;
-      await videoRef.current.play();
-    }
-  }, []);
-
   const startFrameCapture = useCallback(() => {
     if (intervalRef.current) return;
 
@@ -58,6 +41,27 @@ export function useCameraCapture({ onFrame, enabled }: CameraCaptureOptions) {
       videoRef.current.srcObject = null;
     }
   }, [stopFrameCapture]);
+
+  const start = useCallback(async () => {
+    // Clean up existing stream only — don't touch the frame capture interval,
+    // which is managed by the enabled useEffect.
+    streamRef.current?.getTracks().forEach((t) => t.stop());
+
+    const stream = await navigator.mediaDevices.getUserMedia({
+      video: {
+        facingMode: "environment",
+        width: { ideal: 1280 },
+        height: { ideal: 720 },
+      },
+    });
+
+    streamRef.current = stream;
+
+    if (videoRef.current) {
+      videoRef.current.srcObject = stream;
+      await videoRef.current.play();
+    }
+  }, []);
 
   useEffect(() => {
     if (enabled) {
