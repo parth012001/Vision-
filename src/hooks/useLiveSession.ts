@@ -162,6 +162,12 @@ export function useLiveSession() {
         return;
       }
       await startCamera();
+      if (clientRef.current !== client) {
+        stopCamera();
+        stopMic();
+        client.disconnect();
+        return;
+      }
     } catch (err) {
       console.error("Connection failed:", err);
 
