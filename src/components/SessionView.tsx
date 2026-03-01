@@ -7,7 +7,7 @@ import { ControlTray } from "./ControlTray";
 import { StatusIndicator } from "./StatusIndicator";
 import { TranscriptOverlay } from "./TranscriptOverlay";
 import { SnapAnalyzeSheet } from "./SnapAnalyzeSheet";
-import { ReconnectToast } from "./ReconnectToast";
+import { ReconnectToast } from "@/components/ReconnectToast";
 
 export function SessionView() {
   const {

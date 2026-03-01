@@ -274,11 +274,11 @@ export function useLiveSession() {
     userDisconnectedRef.current = false;
     wasConnectedRef.current = false;
 
+    const localAttempt = connectAttemptRef.current;
+
     try {
       await connectInner(false);
     } catch (err) {
-      // connectInner already set error state for non-stale attempts
-      const localAttempt = connectAttemptRef.current;
       if (connectAttemptRef.current === localAttempt) {
         setError(err instanceof Error ? err.message : "Connection failed");
         setStatus("error");

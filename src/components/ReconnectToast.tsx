@@ -9,17 +9,18 @@ type ReconnectToastProps = {
 
 export function ReconnectToast({ visible, onDismiss }: ReconnectToastProps) {
   const [show, setShow] = useState(false);
+  const [mounted, setMounted] = useState(false);
 
   useEffect(() => {
     if (visible) {
-      // Trigger fade-in on next frame
+      setMounted(true);
       requestAnimationFrame(() => setShow(true));
     } else {
       setShow(false);
     }
   }, [visible]);
 
-  if (!visible) return null;
+  if (!mounted) return null;
 
   return (
     <div
@@ -27,7 +28,10 @@ export function ReconnectToast({ visible, onDismiss }: ReconnectToastProps) {
         show ? "opacity-100" : "opacity-0"
       }`}
       onTransitionEnd={() => {
-        if (!show) onDismiss();
+        if (!show) {
+          setMounted(false);
+          onDismiss();
+        }
       }}
     >
       <div className="mt-4 px-4 py-2 rounded-full bg-emerald-600/90 backdrop-blur-md flex items-center gap-2 pointer-events-auto">
