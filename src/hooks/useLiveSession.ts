@@ -17,6 +17,7 @@ export function useLiveSession() {
   const [error, setError] = useState<string | null>(null);
 
   const clientRef = useRef<GeminiLiveClient | null>(null);
+  const connectAttemptRef = useRef(0);
   const currentTextRef = useRef<string>("");
 
   const {
@@ -63,12 +64,16 @@ export function useLiveSession() {
   const connect = useCallback(async () => {
     let client: GeminiLiveClient | null = null;
 
+    const localAttempt = ++connectAttemptRef.current;
+    const isStale = () => connectAttemptRef.current !== localAttempt;
+
     try {
       setStatus("connecting");
       setError(null);
 
       // 1. Fetch ephemeral token from server
       const tokenRes = await fetch("/api/token", { method: "POST" });
+      if (isStale()) return;
       if (!tokenRes.ok) {
         throw new Error(`Token request failed (${tokenRes.status})`);
       }
@@ -82,6 +87,7 @@ export function useLiveSession() {
       // 2. Initialize audio playback (needs user gesture context)
       initAudio();
       await resumeAudio();
+      if (isStale()) return;
 
       // 3. Create the client with event handlers
       client = new GeminiLiveClient(token, {
@@ -159,22 +165,25 @@ export function useLiveSession() {
     } catch (err) {
       console.error("Connection failed:", err);
 
-      // Tear down anything that was partially started.
-      // Use the attempt-scoped client, not clientRef.current, to avoid
-      // accidentally disconnecting a newer session that took over the ref.
-      stopMic();
-      stopCamera();
-      stopPlayback();
+      // Clean up the attempt-scoped client regardless of staleness.
       client?.disconnect();
-      if (clientRef.current === client) {
-        clientRef.current = null;
-      }
-      cleanupAudio();
-      currentTextRef.current = "";
 
-      setError(err instanceof Error ? err.message : "Connection failed");
-      setStatus("error");
-      setAiState("idle");
+      // Only tear down shared state if this attempt is still current.
+      // If stale, a newer connect() or disconnect() already owns the state.
+      if (!isStale()) {
+        stopMic();
+        stopCamera();
+        stopPlayback();
+        if (clientRef.current === client) {
+          clientRef.current = null;
+        }
+        cleanupAudio();
+        currentTextRef.current = "";
+
+        setError(err instanceof Error ? err.message : "Connection failed");
+        setStatus("error");
+        setAiState("idle");
+      }
     }
   }, [
     initAudio,
@@ -190,6 +199,7 @@ export function useLiveSession() {
   ]);
 
   const disconnect = useCallback(() => {
+    connectAttemptRef.current++;
     stopMic();
     stopCamera();
     stopPlayback();
