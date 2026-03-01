@@ -13,7 +13,19 @@ export function useAudioCapture({ onAudioData }: AudioCaptureOptions) {
   const audioContextRef = useRef<AudioContext | null>(null);
   const workletNodeRef = useRef<AudioWorkletNode | null>(null);
 
+  const stop = useCallback(() => {
+    workletNodeRef.current?.disconnect();
+    workletNodeRef.current = null;
+
+    audioContextRef.current?.close();
+    audioContextRef.current = null;
+
+    streamRef.current?.getTracks().forEach((t) => t.stop());
+    streamRef.current = null;
+  }, []);
+
   const start = useCallback(async () => {
+    stop();
     const stream = await navigator.mediaDevices.getUserMedia({
       audio: {
         sampleRate: AUDIO_SAMPLE_RATE_INPUT,
@@ -43,18 +55,7 @@ export function useAudioCapture({ onAudioData }: AudioCaptureOptions) {
     };
 
     source.connect(workletNode);
-  }, [onAudioData]);
-
-  const stop = useCallback(() => {
-    workletNodeRef.current?.disconnect();
-    workletNodeRef.current = null;
-
-    audioContextRef.current?.close();
-    audioContextRef.current = null;
-
-    streamRef.current?.getTracks().forEach((t) => t.stop());
-    streamRef.current = null;
-  }, []);
+  }, [onAudioData, stop]);
 
   return { start, stop };
 }
