@@ -16,3 +16,6 @@ export const EPHEMERAL_TOKEN_EXPIRE_MS = 15 * 60 * 1000; // 15 minutes
 export const RECONNECT_MAX_ATTEMPTS = 3;
 export const RECONNECT_BASE_DELAY_MS = 1000; // 1s → 2s → 4s
 export const RECONNECT_TOAST_DURATION_MS = 3000;
+
+export const COMPRESSION_TRIGGER_TOKENS = "80000";
+export const COMPRESSION_TARGET_TOKENS = "40000";

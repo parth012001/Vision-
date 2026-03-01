@@ -1,6 +1,15 @@
 import { GoogleGenAI, Modality, Session } from "@google/genai";
 import type { LiveConnectConfig, LiveServerMessage } from "@google/genai";
-import { LIVE_MODEL } from "./constants";
+import {
+  LIVE_MODEL,
+  COMPRESSION_TRIGGER_TOKENS,
+  COMPRESSION_TARGET_TOKENS,
+} from "./constants";
+
+export interface LiveConnectOptions {
+  systemInstruction: string;
+  resumptionHandle?: string;
+}
 
 export type LiveEventHandler = {
   onAudio?: (base64Pcm: string) => void;
@@ -10,6 +19,8 @@ export type LiveEventHandler = {
   onError?: (error: Error) => void;
   onClose?: () => void;
   onOpen?: () => void;
+  onGoAway?: (timeLeftMs: number) => void;
+  onSessionResumptionUpdate?: (handle: string, resumable: boolean) => void;
 };
 
 export class GeminiLiveClient {
@@ -30,12 +41,12 @@ export class GeminiLiveClient {
    * only after the WebSocket is fully open and the session is ready
    * to accept audio/video input.
    */
-  async connect(systemInstruction: string): Promise<void> {
+  async connect(options: LiveConnectOptions): Promise<void> {
     const ai = new GoogleGenAI({ apiKey: this.token, httpOptions: { apiVersion: "v1alpha" } });
 
     const config: LiveConnectConfig = {
       responseModalities: [Modality.AUDIO],
-      systemInstruction,
+      systemInstruction: options.systemInstruction,
       speechConfig: {
         voiceConfig: {
           prebuiltVoiceConfig: {
@@ -45,6 +56,13 @@ export class GeminiLiveClient {
       },
       inputAudioTranscription: {},
       outputAudioTranscription: {},
+      contextWindowCompression: {
+        triggerTokens: COMPRESSION_TRIGGER_TOKENS,
+        slidingWindow: { targetTokens: COMPRESSION_TARGET_TOKENS },
+      },
+      sessionResumption: {
+        handle: options.resumptionHandle,
+      },
     };
 
     // Bump generation so any in-flight connect from a previous call
@@ -119,10 +137,35 @@ export class GeminiLiveClient {
     });
   }
 
+  private parseDuration(s: string): number {
+    const match = s.match(/^(\d+(?:\.\d+)?)s$/);
+    return match ? parseFloat(match[1]) * 1000 : 0;
+  }
+
   private handleMessage(data: unknown) {
     if (!data || typeof data !== "object") return;
 
     const msg = data as Record<string, unknown>;
+
+    // GoAway — server warns before dropping the connection
+    const goAway = msg.goAway as Record<string, unknown> | undefined;
+    if (goAway) {
+      const timeLeft = goAway.timeLeft as string | undefined;
+      const timeLeftMs = timeLeft ? this.parseDuration(timeLeft) : 0;
+      this.handlers.onGoAway?.(timeLeftMs);
+    }
+
+    // Session Resumption Update — server provides a handle for reconnect
+    const sessionResumptionUpdate = msg.sessionResumptionUpdate as
+      | Record<string, unknown>
+      | undefined;
+    if (sessionResumptionUpdate) {
+      const newHandle = sessionResumptionUpdate.newHandle as string | undefined;
+      const resumable = sessionResumptionUpdate.resumable as boolean | undefined;
+      if (newHandle) {
+        this.handlers.onSessionResumptionUpdate?.(newHandle, resumable ?? false);
+      }
+    }
 
     const serverContent = msg.serverContent as
       | Record<string, unknown>
