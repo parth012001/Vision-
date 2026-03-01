@@ -8,7 +8,7 @@ type StatusIndicatorProps = {
 };
 
 export function StatusIndicator({ status, aiState }: StatusIndicatorProps) {
-  if (status !== "connected") return null;
+  if (status !== "connected" && status !== "reconnecting") return null;
 
   const config = {
     listening: { label: "Listening", color: "bg-accent", pulse: true },

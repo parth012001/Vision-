@@ -12,3 +12,7 @@ export const CAMERA_SNAP_QUALITY = 0.95;
 
 export const TOKEN_REFRESH_INTERVAL_MS = 4 * 60 * 1000; // 4 minutes
 export const EPHEMERAL_TOKEN_EXPIRE_MS = 15 * 60 * 1000; // 15 minutes
+
+export const RECONNECT_MAX_ATTEMPTS = 3;
+export const RECONNECT_BASE_DELAY_MS = 1000; // 1s → 2s → 4s
+export const RECONNECT_TOAST_DURATION_MS = 3000;
