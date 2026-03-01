@@ -1,7 +1,9 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 
-// Capture the callbacks passed to ai.live.connect so tests can fire them
+// Capture the callbacks and config passed to ai.live.connect so tests can fire/inspect them
 let capturedCallbacks: Record<string, (...args: unknown[]) => void> = {};
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+let capturedConnectArg: Record<string, any> = {};
 let mockSession: {
   close: ReturnType<typeof vi.fn>;
   sendRealtimeInput: ReturnType<typeof vi.fn>;
@@ -15,8 +17,10 @@ vi.mock("@google/genai", () => {
     GoogleGenAI: vi.fn().mockImplementation(function () {
       return {
         live: {
-          connect: vi.fn().mockImplementation(function ({ callbacks }: { callbacks: Record<string, (...args: unknown[]) => void> }) {
-            capturedCallbacks = callbacks;
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          connect: vi.fn().mockImplementation(function (arg: any) {
+            capturedCallbacks = arg.callbacks;
+            capturedConnectArg = arg;
             return new Promise((resolve, reject) => {
               connectResolve = resolve;
               connectReject = reject;
@@ -44,6 +48,7 @@ describe("GeminiLiveClient", () => {
 
   beforeEach(() => {
     capturedCallbacks = {};
+    capturedConnectArg = {};
     mockSession = createMockSession();
     handlers = {
       onAudio: vi.fn(),
@@ -332,6 +337,132 @@ describe("GeminiLiveClient", () => {
       const client = new GeminiLiveClient("test-token", handlers);
       client.sendText("hello");
       expect(mockSession.sendClientContent).not.toHaveBeenCalled();
+    });
+  });
+
+  describe("context window compression config", () => {
+    it("includes compression config in connect call", async () => {
+      const client = new GeminiLiveClient("test-token", handlers);
+      client.connect({ systemInstruction: "system prompt" });
+
+      expect(capturedConnectArg.config.contextWindowCompression).toEqual({
+        triggerTokens: "80000",
+        slidingWindow: { targetTokens: "40000" },
+      });
+    });
+  });
+
+  describe("session resumption config", () => {
+    it("sends undefined handle on fresh connect", async () => {
+      const client = new GeminiLiveClient("test-token", handlers);
+      client.connect({ systemInstruction: "system prompt" });
+
+      expect(capturedConnectArg.config.sessionResumption).toEqual({
+        handle: undefined,
+      });
+    });
+
+    it("sends provided handle on reconnect", async () => {
+      const client = new GeminiLiveClient("test-token", handlers);
+      client.connect({
+        systemInstruction: "system prompt",
+        resumptionHandle: "abc-handle-123",
+      });
+
+      expect(capturedConnectArg.config.sessionResumption).toEqual({
+        handle: "abc-handle-123",
+      });
+    });
+  });
+
+  describe("GoAway handling", () => {
+    async function createConnectedClient() {
+      const client = new GeminiLiveClient("test-token", handlers);
+      const connectPromise = client.connect({ systemInstruction: "system prompt" });
+      capturedCallbacks.onopen();
+      connectResolve(mockSession);
+      await connectPromise;
+      return client;
+    }
+
+    it("fires onGoAway with parsed duration in milliseconds", async () => {
+      await createConnectedClient();
+      capturedCallbacks.onmessage({
+        goAway: { timeLeft: "120s" },
+      });
+      expect(handlers.onGoAway).toHaveBeenCalledWith(120_000);
+    });
+
+    it("handles fractional seconds in GoAway duration", async () => {
+      await createConnectedClient();
+      capturedCallbacks.onmessage({
+        goAway: { timeLeft: "30.5s" },
+      });
+      expect(handlers.onGoAway).toHaveBeenCalledWith(30_500);
+    });
+
+    it("fires onGoAway with 0 when timeLeft is missing", async () => {
+      await createConnectedClient();
+      capturedCallbacks.onmessage({
+        goAway: {},
+      });
+      expect(handlers.onGoAway).toHaveBeenCalledWith(0);
+    });
+
+    it("fires onGoAway with 0 for unparseable duration", async () => {
+      await createConnectedClient();
+      capturedCallbacks.onmessage({
+        goAway: { timeLeft: "invalid" },
+      });
+      expect(handlers.onGoAway).toHaveBeenCalledWith(0);
+    });
+  });
+
+  describe("session resumption update handling", () => {
+    async function createConnectedClient() {
+      const client = new GeminiLiveClient("test-token", handlers);
+      const connectPromise = client.connect({ systemInstruction: "system prompt" });
+      capturedCallbacks.onopen();
+      connectResolve(mockSession);
+      await connectPromise;
+      return client;
+    }
+
+    it("fires onSessionResumptionUpdate with handle and resumable flag", async () => {
+      await createConnectedClient();
+      capturedCallbacks.onmessage({
+        sessionResumptionUpdate: {
+          newHandle: "handle-xyz",
+          resumable: true,
+        },
+      });
+      expect(handlers.onSessionResumptionUpdate).toHaveBeenCalledWith(
+        "handle-xyz",
+        true
+      );
+    });
+
+    it("defaults resumable to false when not provided", async () => {
+      await createConnectedClient();
+      capturedCallbacks.onmessage({
+        sessionResumptionUpdate: {
+          newHandle: "handle-abc",
+        },
+      });
+      expect(handlers.onSessionResumptionUpdate).toHaveBeenCalledWith(
+        "handle-abc",
+        false
+      );
+    });
+
+    it("does not fire callback when newHandle is missing", async () => {
+      await createConnectedClient();
+      capturedCallbacks.onmessage({
+        sessionResumptionUpdate: {
+          resumable: true,
+        },
+      });
+      expect(handlers.onSessionResumptionUpdate).not.toHaveBeenCalled();
     });
   });
 
