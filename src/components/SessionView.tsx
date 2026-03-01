@@ -7,6 +7,7 @@ import { ControlTray } from "./ControlTray";
 import { StatusIndicator } from "./StatusIndicator";
 import { TranscriptOverlay } from "./TranscriptOverlay";
 import { SnapAnalyzeSheet } from "./SnapAnalyzeSheet";
+import { ReconnectToast } from "./ReconnectToast";
 
 export function SessionView() {
   const {
@@ -21,6 +22,8 @@ export function SessionView() {
     disconnect,
     toggleMic,
     toggleCamera,
+    showReconnectToast,
+    dismissReconnectToast,
   } = useLiveSession();
 
   const {
@@ -96,12 +99,24 @@ export function SessionView() {
     );
   }
 
-  // Connected — main session view
+  // Connected or Reconnecting — main session view
   return (
     <div className="h-screen-safe relative overflow-hidden bg-black">
       <CameraView ref={videoRef} isActive={isCameraOn} />
       <StatusIndicator status={status} aiState={aiState} />
       <TranscriptOverlay entries={transcript} />
+
+      {status === "reconnecting" && (
+        <div className="absolute top-0 left-0 right-0 pt-safe flex justify-center z-30">
+          <div className="mt-14 px-4 py-2 rounded-full bg-yellow-600/90 backdrop-blur-md flex items-center gap-2">
+            <div className="w-3 h-3 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+            <span className="text-xs font-medium text-white">
+              Reconnecting...
+            </span>
+          </div>
+        </div>
+      )}
+
       <ControlTray
         isMicOn={isMicOn}
         isCameraOn={isCameraOn}
@@ -116,6 +131,10 @@ export function SessionView() {
         isAnalyzing={isSnapAnalyzing}
         result={snapResult}
         onClose={closeSnap}
+      />
+      <ReconnectToast
+        visible={showReconnectToast}
+        onDismiss={dismissReconnectToast}
       />
     </div>
   );

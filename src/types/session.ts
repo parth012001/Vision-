@@ -2,6 +2,7 @@ export type SessionStatus =
   | "idle"
   | "connecting"
   | "connected"
+  | "reconnecting"
   | "disconnected"
   | "error";
 
