@@ -1,6 +1,6 @@
-import { GoogleGenAI } from "@google/genai";
+import { GoogleGenAI, Modality } from "@google/genai";
 import { NextResponse } from "next/server";
-import { EPHEMERAL_TOKEN_EXPIRE_MS } from "@/lib/constants";
+import { EPHEMERAL_TOKEN_EXPIRE_MS, LIVE_MODEL } from "@/lib/constants";
 
 export async function POST() {
   const apiKey = process.env.GEMINI_API_KEY;
@@ -25,6 +25,12 @@ export async function POST() {
       config: {
         expireTime,
         uses: 1,
+        liveConnectConstraints: {
+          model: LIVE_MODEL,
+          config: {
+            responseModalities: [Modality.AUDIO],
+          },
+        },
       },
     });
 

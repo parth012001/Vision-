@@ -69,8 +69,15 @@ export function useLiveSession() {
 
       // 1. Fetch ephemeral token from server
       const tokenRes = await fetch("/api/token", { method: "POST" });
-      const { token, error: tokenError } = await tokenRes.json();
-      if (tokenError) throw new Error(tokenError);
+      if (!tokenRes.ok) {
+        throw new Error(`Token request failed (${tokenRes.status})`);
+      }
+      const tokenData = await tokenRes.json();
+      if (tokenData.error) throw new Error(tokenData.error);
+      const { token } = tokenData;
+      if (!token || typeof token !== "string") {
+        throw new Error("Server returned an invalid token");
+      }
 
       // 2. Initialize audio playback (needs user gesture context)
       initAudio();
