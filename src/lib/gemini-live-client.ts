@@ -15,13 +15,13 @@ export type LiveEventHandler = {
 export class GeminiLiveClient {
   private session: Session | null = null;
   private handlers: LiveEventHandler;
-  private apiKey: string;
+  private token: string;
   private connected = false;
   private connectGeneration = 0;
   private pendingReject: ((err: Error) => void) | null = null;
 
-  constructor(apiKey: string, handlers: LiveEventHandler) {
-    this.apiKey = apiKey;
+  constructor(token: string, handlers: LiveEventHandler) {
+    this.token = token;
     this.handlers = handlers;
   }
 
@@ -31,7 +31,7 @@ export class GeminiLiveClient {
    * to accept audio/video input.
    */
   async connect(systemInstruction: string): Promise<void> {
-    const ai = new GoogleGenAI({ apiKey: this.apiKey });
+    const ai = new GoogleGenAI({ apiKey: this.token, httpOptions: { apiVersion: "v1alpha" } });
 
     const config: LiveConnectConfig = {
       responseModalities: [Modality.AUDIO],

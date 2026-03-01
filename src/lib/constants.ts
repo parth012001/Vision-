@@ -11,3 +11,4 @@ export const CAMERA_JPEG_QUALITY = 0.8;
 export const CAMERA_SNAP_QUALITY = 0.95;
 
 export const TOKEN_REFRESH_INTERVAL_MS = 4 * 60 * 1000; // 4 minutes
+export const EPHEMERAL_TOKEN_EXPIRE_MS = 15 * 60 * 1000; // 15 minutes
