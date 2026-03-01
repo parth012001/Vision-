@@ -172,9 +172,7 @@ export function useLiveSession() {
             }
           },
           onSessionResumptionUpdate: (handle, resumable) => {
-            if (resumable) {
-              resumptionHandleRef.current = handle;
-            }
+            resumptionHandleRef.current = resumable ? handle : undefined;
           },
           onGoAway: () => {
             if (!client || clientRef.current !== client) return;
@@ -255,25 +253,26 @@ export function useLiveSession() {
 
   // eslint-disable-next-line @typescript-eslint/no-use-before-define -- mutual recursion with connectInner handlers
   const scheduleReconnect = useCallback(async () => {
-    const attemptGeneration = connectAttemptRef.current;
     const isGoAway = goAwayTriggeredRef.current;
     goAwayTriggeredRef.current = false;
 
     for (let attempt = 1; attempt <= RECONNECT_MAX_ATTEMPTS; attempt++) {
       if (userDisconnectedRef.current || unmountedRef.current) return;
-      if (connectAttemptRef.current !== attemptGeneration) return;
 
       setStatus("reconnecting");
       setAiState("idle");
 
       // Skip delay on first attempt if triggered by GoAway (proactive reconnect)
       if (!(isGoAway && attempt === 1)) {
+        const generationBeforeSleep = connectAttemptRef.current;
         const delay = RECONNECT_BASE_DELAY_MS * Math.pow(2, attempt - 1);
         await sleep(delay);
+        if (userDisconnectedRef.current || unmountedRef.current) return;
+        if (connectAttemptRef.current !== generationBeforeSleep) return;
       }
 
-      if (userDisconnectedRef.current || unmountedRef.current) return;
-      if (connectAttemptRef.current !== attemptGeneration) return;
+      // connectInner increments connectAttemptRef on entry; snapshot what it'll become
+      const expectedAttempt = connectAttemptRef.current + 1;
 
       try {
         await connectInner(true);
@@ -284,7 +283,8 @@ export function useLiveSession() {
         }, RECONNECT_TOAST_DURATION_MS);
         return;
       } catch {
-        // Will retry on next iteration
+        // If an external connect/disconnect changed the generation, stop retrying
+        if (connectAttemptRef.current !== expectedAttempt) return;
         continue;
       }
     }
@@ -303,12 +303,13 @@ export function useLiveSession() {
     wasConnectedRef.current = false;
     resumptionHandleRef.current = undefined;
 
-    const localAttempt = connectAttemptRef.current;
+    // connectInner increments connectAttemptRef on entry; snapshot what it'll become
+    const expectedAttempt = connectAttemptRef.current + 1;
 
     try {
       await connectInner(false);
     } catch (err) {
-      if (connectAttemptRef.current === localAttempt) {
+      if (connectAttemptRef.current === expectedAttempt) {
         setError(err instanceof Error ? err.message : "Connection failed");
         setStatus("error");
         setAiState("idle");
