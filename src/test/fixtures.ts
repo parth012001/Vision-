@@ -1,5 +1,11 @@
 import { vi } from "vitest";
 
+let fixtureIdCounter = 0;
+
+function nextFixtureId(): string {
+  return String(++fixtureIdCounter);
+}
+
 /**
  * Create a mock MediaStream with stoppable tracks.
  */
@@ -9,7 +15,7 @@ export function createMockMediaStream(): MediaStream {
     stop: vi.fn(),
     enabled: true,
     readyState: "live" as const,
-    id: "mock-track-" + Math.random().toString(36).slice(2),
+    id: `mock-track-${nextFixtureId()}`,
   };
 
   return {
@@ -19,7 +25,7 @@ export function createMockMediaStream(): MediaStream {
     addTrack: vi.fn(),
     removeTrack: vi.fn(),
     active: true,
-    id: "mock-stream-" + Math.random().toString(36).slice(2),
+    id: `mock-stream-${nextFixtureId()}`,
   } as unknown as MediaStream;
 }
 
@@ -32,7 +38,7 @@ export function createMockVideoStream(): MediaStream {
     stop: vi.fn(),
     enabled: true,
     readyState: "live" as const,
-    id: "mock-video-track-" + Math.random().toString(36).slice(2),
+    id: `mock-video-track-${nextFixtureId()}`,
   };
 
   return {
@@ -42,7 +48,7 @@ export function createMockVideoStream(): MediaStream {
     addTrack: vi.fn(),
     removeTrack: vi.fn(),
     active: true,
-    id: "mock-video-stream-" + Math.random().toString(36).slice(2),
+    id: `mock-video-stream-${nextFixtureId()}`,
   } as unknown as MediaStream;
 }
 

@@ -1,6 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { renderHook, act } from "@testing-library/react";
-import { useAudioCapture } from "../useAudioCapture";
+import { useAudioCapture } from "@/hooks/useAudioCapture";
 import { createMockMediaStream } from "@/test/fixtures";
 
 describe("useAudioCapture", () => {

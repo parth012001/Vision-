@@ -1,7 +1,7 @@
 import { cleanup } from "@testing-library/react";
 import "@testing-library/jest-dom/vitest";
 import { afterEach, vi } from "vitest";
-import { createMockMediaStream } from "./fixtures";
+import { createMockMediaStream } from "@/test/fixtures";
 
 afterEach(() => {
   cleanup();
@@ -11,7 +11,7 @@ afterEach(() => {
 // --- navigator.mediaDevices.getUserMedia ---
 Object.defineProperty(globalThis.navigator, "mediaDevices", {
   value: {
-    getUserMedia: vi.fn().mockResolvedValue(createMockMediaStream()),
+    getUserMedia: vi.fn().mockImplementation(() => Promise.resolve(createMockMediaStream())),
   },
   writable: true,
   configurable: true,

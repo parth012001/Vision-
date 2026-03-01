@@ -5,7 +5,7 @@ import {
   int16ToFloat32,
   base64ToBlob,
   arrayBufferToBlob,
-} from "../audio-utils";
+} from "@/lib/audio-utils";
 
 describe("pcmToBase64", () => {
   it("converts an Int16 PCM ArrayBuffer to base64", () => {

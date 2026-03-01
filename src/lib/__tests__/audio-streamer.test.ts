@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
-import { AudioStreamer } from "../audio-streamer";
+import { AudioStreamer } from "@/lib/audio-streamer";
 import { MOCK_PCM_BASE64 } from "@/test/fixtures";
 
 describe("AudioStreamer", () => {
@@ -50,11 +50,14 @@ describe("AudioStreamer", () => {
       );
     });
 
-    it("calls source.start() with scheduled time", () => {
+    it("calls source.start() within 200ms lookahead window", () => {
       streamer.addChunk(MOCK_PCM_BASE64);
 
       const source = (audioContext.createBufferSource as ReturnType<typeof vi.fn>).mock.results[0].value;
       expect(source.start).toHaveBeenCalled();
+      const scheduledTime = source.start.mock.calls[0][0] as number;
+      expect(scheduledTime).toBeGreaterThanOrEqual(audioContext.currentTime);
+      expect(scheduledTime).toBeLessThanOrEqual(audioContext.currentTime + 0.2);
     });
   });
 

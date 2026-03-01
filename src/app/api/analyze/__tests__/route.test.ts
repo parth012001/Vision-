@@ -1,5 +1,6 @@
 // @vitest-environment node
-import { describe, it, expect, vi, beforeEach } from "vitest";
+import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
+import { ANALYZE_MODEL } from "@/lib/constants";
 
 const mockGenerateContent = vi.fn();
 
@@ -19,6 +20,10 @@ describe("POST /api/analyze", () => {
     mockGenerateContent.mockReset();
   });
 
+  afterEach(() => {
+    vi.unstubAllEnvs();
+  });
+
   function createRequest(body: Record<string, unknown>) {
     return new Request("http://localhost/api/analyze", {
       method: "POST",
@@ -33,7 +38,7 @@ describe("POST /api/analyze", () => {
     });
 
     const request = createRequest({ image: "base64jpeg" });
-    const { POST } = await import("../route");
+    const { POST } = await import("@/app/api/analyze/route");
     const response = await POST(request as unknown as Parameters<typeof POST>[0]);
     const json = await response.json();
 
@@ -43,7 +48,7 @@ describe("POST /api/analyze", () => {
 
   it("returns 400 for missing image in body", async () => {
     const request = createRequest({});
-    const { POST } = await import("../route");
+    const { POST } = await import("@/app/api/analyze/route");
     const response = await POST(request as unknown as Parameters<typeof POST>[0]);
     const json = await response.json();
 
@@ -55,7 +60,7 @@ describe("POST /api/analyze", () => {
     vi.stubEnv("GEMINI_API_KEY", "");
 
     const request = createRequest({ image: "base64jpeg" });
-    const { POST } = await import("../route");
+    const { POST } = await import("@/app/api/analyze/route");
     const response = await POST(request as unknown as Parameters<typeof POST>[0]);
     const json = await response.json();
 
@@ -67,7 +72,7 @@ describe("POST /api/analyze", () => {
     mockGenerateContent.mockRejectedValue(new Error("API error"));
 
     const request = createRequest({ image: "base64jpeg", prompt: "read this" });
-    const { POST } = await import("../route");
+    const { POST } = await import("@/app/api/analyze/route");
     const response = await POST(request as unknown as Parameters<typeof POST>[0]);
     const json = await response.json();
 
@@ -75,17 +80,18 @@ describe("POST /api/analyze", () => {
     expect(json.error).toBe("Analysis failed");
   });
 
-  it("uses custom prompt when provided", async () => {
+  it("uses custom prompt and correct model", async () => {
     mockGenerateContent.mockResolvedValue({ text: "result" });
 
     const request = createRequest({
       image: "base64jpeg",
       prompt: "Custom analysis prompt",
     });
-    const { POST } = await import("../route");
+    const { POST } = await import("@/app/api/analyze/route");
     await POST(request as unknown as Parameters<typeof POST>[0]);
 
     const callArgs = mockGenerateContent.mock.calls[0][0];
+    expect(callArgs.model).toBe(ANALYZE_MODEL);
     const textPart = callArgs.contents[0].parts[1];
     expect(textPart.text).toBe("Custom analysis prompt");
   });

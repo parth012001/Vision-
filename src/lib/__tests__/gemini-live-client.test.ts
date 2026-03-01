@@ -29,7 +29,7 @@ vi.mock("@google/genai", () => {
   };
 });
 
-import { GeminiLiveClient, LiveEventHandler } from "../gemini-live-client";
+import { GeminiLiveClient, LiveEventHandler } from "@/lib/gemini-live-client";
 
 function createMockSession() {
   return {

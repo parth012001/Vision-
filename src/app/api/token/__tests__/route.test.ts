@@ -1,5 +1,5 @@
 // @vitest-environment node
-import { describe, it, expect, vi, beforeEach } from "vitest";
+import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 
 const mockCreate = vi.fn();
 
@@ -20,9 +20,12 @@ describe("POST /api/token", () => {
     mockCreate.mockReset();
   });
 
+  afterEach(() => {
+    vi.unstubAllEnvs();
+  });
+
   async function callRoute() {
-    // Re-import to pick up fresh env
-    const { POST } = await import("../route");
+    const { POST } = await import("@/app/api/token/route");
     const response = await POST();
     return response;
   }

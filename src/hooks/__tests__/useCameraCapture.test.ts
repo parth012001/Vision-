@@ -1,6 +1,6 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { renderHook, act } from "@testing-library/react";
-import { useCameraCapture } from "../useCameraCapture";
+import { useCameraCapture } from "@/hooks/useCameraCapture";
 import { createMockVideoStream } from "@/test/fixtures";
 
 // Mock camera-utils since captureFrame relies on canvas/video DOM APIs
@@ -60,19 +60,19 @@ describe("useCameraCapture", () => {
     expect(track.stop).toHaveBeenCalled();
   });
 
-  it("enabled=true starts frame capture, enabled=false stops it", () => {
-    // We verify the interval lifecycle by toggling enabled and checking
-    // that captureFrame is only called when enabled=true and videoRef is set.
-    // Since videoRef.current is null in renderHook (no DOM), captureFrame
-    // won't be called, but we can verify the interval management via the
-    // enabled=false test above. Here we just confirm no errors on mount.
+  it("enabled=true starts interval, unmount clears it", () => {
+    const setIntervalSpy = vi.spyOn(globalThis, "setInterval");
+    const clearIntervalSpy = vi.spyOn(globalThis, "clearInterval");
+
     const { unmount } = renderHook(() =>
       useCameraCapture({ onFrame, enabled: true })
     );
 
-    // Advancing timers should not throw even though videoRef is null
-    vi.advanceTimersByTime(3000);
+    expect(setIntervalSpy).toHaveBeenCalled();
+
     unmount();
+
+    expect(clearIntervalSpy).toHaveBeenCalled();
   });
 
   it("enabled=false stops the frame capture interval", () => {
