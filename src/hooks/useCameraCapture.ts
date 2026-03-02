@@ -43,8 +43,6 @@ export function useCameraCapture({ onFrame, enabled }: CameraCaptureOptions) {
   }, [stopFrameCapture]);
 
   const start = useCallback(async () => {
-    // Clean up existing stream only — don't touch the frame capture interval,
-    // which is managed by the enabled useEffect.
     streamRef.current?.getTracks().forEach((t) => t.stop());
 
     const stream = await navigator.mediaDevices.getUserMedia({
@@ -61,7 +59,13 @@ export function useCameraCapture({ onFrame, enabled }: CameraCaptureOptions) {
       videoRef.current.srcObject = stream;
       await videoRef.current.play();
     }
-  }, []);
+
+    // Restart frame capture — on reconnect the enabled useEffect won't
+    // re-fire because isCameraOn never changed, so we must start it here.
+    if (enabled) {
+      startFrameCapture();
+    }
+  }, [enabled, startFrameCapture]);
 
   useEffect(() => {
     if (enabled) {

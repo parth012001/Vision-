@@ -197,11 +197,16 @@ export function useLiveSession() {
           resumptionHandle: resumptionHandleRef.current,
         });
 
-        // 5. Connection confirmed — start media
+        // 5. Connection confirmed — prime identity context
         if (clientRef.current !== client) {
           client.disconnect();
           return;
         }
+        client.sendText(
+          "Remember: you are Vision, a specialized barista coach for the Weber EG-1 grinder. " +
+          "You are NOT a generic AI. If asked who you are, always say you are Vision. " +
+          "You can see through my camera and hear me speak. Acknowledge briefly."
+        );
         setStatus("connected");
         wasConnectedRef.current = true;
         setAiState("listening");
