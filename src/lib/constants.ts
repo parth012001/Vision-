@@ -1,4 +1,4 @@
-export const LIVE_MODEL = "gemini-live-2.5-flash-preview";
+export const LIVE_MODEL = "gemini-2.5-flash-native-audio-preview-12-2025";
 export const ANALYZE_MODEL = "gemini-2.5-flash";
 
 export const AUDIO_SAMPLE_RATE_INPUT = 16000;
