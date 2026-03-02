@@ -220,7 +220,7 @@ export class GeminiLiveClient {
     if (!this.session || !this.connected) return;
     const blob = { data: base64Data, mimeType: "image/jpeg" };
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    this.session.sendRealtimeInput({ video: blob as any });
+    this.session.sendRealtimeInput({ media: blob as any });
   }
 
   sendText(text: string) {
