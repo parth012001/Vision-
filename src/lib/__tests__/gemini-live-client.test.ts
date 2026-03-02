@@ -353,13 +353,11 @@ describe("GeminiLiveClient", () => {
   });
 
   describe("session resumption config", () => {
-    it("sends undefined handle on fresh connect", async () => {
+    it("omits sessionResumption on fresh connect", async () => {
       const client = new GeminiLiveClient("test-token", handlers);
       client.connect({ systemInstruction: "system prompt" });
 
-      expect(capturedConnectArg.config.sessionResumption).toEqual({
-        handle: undefined,
-      });
+      expect(capturedConnectArg.config.sessionResumption).toBeUndefined();
     });
 
     it("sends provided handle on reconnect", async () => {

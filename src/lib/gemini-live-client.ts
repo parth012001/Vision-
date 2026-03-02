@@ -60,9 +60,9 @@ export class GeminiLiveClient {
         triggerTokens: COMPRESSION_TRIGGER_TOKENS,
         slidingWindow: { targetTokens: COMPRESSION_TARGET_TOKENS },
       },
-      sessionResumption: {
-        handle: options.resumptionHandle,
-      },
+      ...(options.resumptionHandle
+        ? { sessionResumption: { handle: options.resumptionHandle } }
+        : {}),
     };
 
     // Bump generation so any in-flight connect from a previous call
