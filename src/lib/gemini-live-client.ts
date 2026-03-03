@@ -7,7 +7,7 @@ import {
 } from "./constants";
 
 export interface LiveConnectOptions {
-  systemInstruction: string;
+  systemInstruction?: string;
   resumptionHandle?: string;
 }
 
@@ -46,7 +46,9 @@ export class GeminiLiveClient {
 
     const config: LiveConnectConfig = {
       responseModalities: [Modality.AUDIO],
-      systemInstruction: options.systemInstruction,
+      ...(options.systemInstruction
+        ? { systemInstruction: options.systemInstruction }
+        : {}),
       speechConfig: {
         voiceConfig: {
           prebuiltVoiceConfig: {
@@ -227,6 +229,14 @@ export class GeminiLiveClient {
     if (!this.session || !this.connected) return;
     this.session.sendClientContent({
       turns: [{ role: "user", parts: [{ text }] }],
+    });
+  }
+
+  sendSystemInstruction(text: string) {
+    if (!this.session || !this.connected) return;
+    this.session.sendClientContent({
+      turns: [{ role: "system", parts: [{ text }] }],
+      turnComplete: false,
     });
   }
 

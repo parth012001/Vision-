@@ -1,6 +1,7 @@
 import { GoogleGenAI, Modality } from "@google/genai";
 import { NextResponse } from "next/server";
 import { EPHEMERAL_TOKEN_EXPIRE_MS, LIVE_MODEL } from "@/lib/constants";
+import { buildSystemPrompt } from "@/knowledge/system-prompt";
 
 export async function POST() {
   const apiKey = process.env.GEMINI_API_KEY;
@@ -21,6 +22,8 @@ export async function POST() {
       Date.now() + EPHEMERAL_TOKEN_EXPIRE_MS
     ).toISOString();
 
+    const systemInstruction = buildSystemPrompt();
+
     const authToken = await ai.authTokens.create({
       config: {
         expireTime,
@@ -29,6 +32,7 @@ export async function POST() {
           model: LIVE_MODEL,
           config: {
             responseModalities: [Modality.AUDIO],
+            systemInstruction,
           },
         },
       },
@@ -37,6 +41,10 @@ export async function POST() {
     if (!authToken.name) {
       throw new Error("Failed to generate ephemeral token");
     }
+
+    console.log(
+      `Token created with system instruction (${systemInstruction.length} chars)`
+    );
 
     return NextResponse.json({ token: authToken.name });
   } catch (err) {

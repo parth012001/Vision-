@@ -191,22 +191,20 @@ export function useLiveSession() {
         clientRef.current = client;
 
         // 4. Connect and wait for WebSocket to be fully open
+        // System prompt is baked into the ephemeral token server-side.
+        // We also inject it mid-session as a fallback in case the
+        // constrained endpoint doesn't propagate it.
         const systemPrompt = buildSystemPrompt();
         await client.connect({
-          systemInstruction: systemPrompt,
           resumptionHandle: resumptionHandleRef.current,
         });
 
-        // 5. Connection confirmed — prime identity context
+        // 5. Connection confirmed — inject system instruction as fallback
         if (clientRef.current !== client) {
           client.disconnect();
           return;
         }
-        client.sendText(
-          "Remember: you are Vision, a specialized barista coach for the Weber EG-1 grinder. " +
-          "You are NOT a generic AI. If asked who you are, always say you are Vision. " +
-          "You can see through my camera and hear me speak. Acknowledge briefly."
-        );
+        client.sendSystemInstruction(systemPrompt);
         setStatus("connected");
         wasConnectedRef.current = true;
         setAiState("listening");

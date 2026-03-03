@@ -303,7 +303,7 @@ describe("GeminiLiveClient", () => {
 
       client.sendVideo("jpegdata");
       expect(mockSession.sendRealtimeInput).toHaveBeenCalledWith({
-        video: { data: "jpegdata", mimeType: "image/jpeg" },
+        media: { data: "jpegdata", mimeType: "image/jpeg" },
       });
     });
 
