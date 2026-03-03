@@ -1,54 +1,88 @@
 export const EG1_MANUAL = `
-# Weber Workshops EG-1 Coffee Grinder — Complete Reference
+# Weber Workshops EG-1 Coffee Grinder — Reference (from official manual)
 
 ## Overview
-The EG-1 is a premium single-dose flat burr coffee grinder designed by Weber Workshops. It features 80mm or 83mm SSP burrs, a direct-drive motor, and an ultra-low retention design.
+The EG-1 is a premium single-dose 80mm flat burr coffee grinder by Weber Workshops. Model: EG-1 V3. Designed for specialty coffee — espresso through pour-over. Ultra-low retention, tool-free daily cleaning, variable RPM.
 
-## Key Components
-- **Hopper / Bean Inlet**: Top opening where you load single doses of beans (typically 15-20g)
-- **Grind Adjustment Dial**: Large numbered dial on the front. Rotates continuously. Numbers range from 0 to ~10. Lower = finer, Higher = coarser
-- **Portafilter Fork / Cup Rest**: Where you place your portafilter or dosing cup to catch grounds
-- **Power Switch**: Located on the back of the unit
-- **Anti-Popcorn Device (APD)**: Silicone bellows on top that pushes beans down into the burrs, preventing beans from bouncing ("popcorning"). Push down gently after loading beans.
-- **Burr Set**: 80mm or 83mm flat burrs (SSP or stock). Access via top by removing the bean inlet
-- **Motor**: Direct-drive brushless DC motor, very quiet operation
-- **Speed Control**: Some versions have variable RPM. Standard is ~1400 RPM
-- **Retention**: Ultra-low, typically <0.1g with proper technique (single dose + APD)
+## Electrical Specs
+- Rated voltage: 90–240V (universal, no transformer needed)
+- Frequency: 50/60Hz
+- Power: 315–385W
+- Cable: C13 style (standard computer cable)
 
-## Grind Adjustment
-- The dial has numbered markings from approximately 0 to 10
-- Each full number represents a significant change
-- Fine adjustments are made between numbers (e.g., 1.5, 2.3)
-- **Turn clockwise** = finer grind (lower numbers)
-- **Turn counter-clockwise** = coarser grind (higher numbers)
-- **IMPORTANT**: Only adjust the grind dial while the motor is running or with no beans in the chamber
-- Small adjustments (0.1-0.2) can make a noticeable difference for espresso
+## Key Parts (official names — use these when referencing what you see on camera)
+- **Bean Dish** — magnetic, attaches to top via stainless dowel pins
+- **Motor Cap / Motor Casing / Motor Mount** — top assembly housing the direct-drive motor
+- **Neck** — connects motor assembly to the base
+- **Reach Around Arms** — structural arms connecting neck to base
+- **Locking Ring** — the grind adjustment mechanism. Lift up and turn to adjust grind size
+- **Upper Funnel / Lower Funnel** — magnetic covers around the grind chamber. Pull down then out to remove for cleaning
+- **Blind Shaker** — 3-piece (body, plug, cap) dosing cup that sits below the spout
+- **Shaker Wood Platen** — wooden platform that holds the blind shaker
+- **Shaker Pad** — rubber pad under the platen
+- **RPM Display** — digital readout on the base front
+- **RPM Knob** — black knob to adjust motor speed
+- **Purge Button** — at the CENTER of the RPM knob
+- **On/Off Button** — illuminated button on base front, stays depressed when running
+- **Driver Box** — electronics housing on the base
+- **Rail Cover** — removable cover for the portafilter rail mount point
+- **Clicker** — located behind the bean funnels, tap to dislodge residual grounds from the spout
+- **Optional: Portafilter Rail System** — Rail Ring, Ring Funnel, Rail Fork (for direct-to-portafilter grinding)
+- **RDT Bottle** — included spray bottle for Ross Droplet Technique (static reduction)
 
-## Power & Operation
-1. Flip the power switch on the back to ON
-2. The grinder is ready immediately (no warm-up needed)
-3. Weigh your dose of beans
-4. Place portafilter/cup on the fork
-5. Pour beans into the hopper
-6. Place the APD bellows on top
-7. Press down the APD gently to push beans into burrs
-8. Grinder stops automatically when beans are finished
-9. Tap/knock the portafilter fork to settle grounds
-10. Remove portafilter and prepare your shot
+## Grind Adjustment Mechanism
+- **How it works**: Lift the LOCKING RING and turn it
+- **Direction**: Larger numbers = larger (coarser) particles. Smaller numbers = finer
+- **Resolution**: Each tick mark adjusts by exactly 5 microns
+- **CRITICAL**: There is NO absolute zero. The burr lock point varies per unit depending on burr set installed and calibration
+- **Never force the dial** with beans jammed in the burrs
 
-## Maintenance
-- **Daily**: Brush out any retained grounds from the chute
-- **Weekly**: Run a small amount of grinder cleaning pellets (e.g., Grindz)
-- **Monthly**: Remove burrs and brush thoroughly
-- **Alignment**: Burrs should be aligned for optimal performance. This is an advanced procedure.
+## RPM Control
+- Adjustable via the RPM knob (turn counterclockwise to reduce speed)
+- **Recommended starting range**: 500–700 RPM
+- RPM displays briefly when adjusted (can be pre-set without running the motor)
+- Higher RPM = faster grind but potentially more heat/fines
+- Lower RPM = slower grind, potentially better particle distribution
 
-## LED Indicators
-- The EG-1 may have LED lighting around the grind chute area
-- Illuminates the grounds for visual inspection
+## Purge Button
+- **When grinder is stopped**: Momentarily reverse-spins the burrs, then briefly spins at MAX RPM. Dislodges foreign objects or jammed beans, purges leftover grounds
+- **When grinding**: Gives a temporary MAX RPM burst
 
-## Common Issues
-- **Clumping**: Normal for espresso-fine grinds. Use WDT (Weiss Distribution Technique) tool to break clumps
-- **Static**: Can cause grounds to stick. RDT (Ross Droplet Technique) — add a tiny drop of water to beans before grinding — helps significantly
-- **Inconsistent dose**: Ensure you're using the APD and single-dosing properly
-- **Motor won't start**: Check power switch on back, ensure power cable is connected
+## Operating the Grinder
+1. Power on at mains switch (back of unit, next to power cord). Display reads "0"
+2. Set RPM to desired speed (500–700 RPM starting point)
+3. Press on/off button — button illuminates and stays depressed while spinning
+4. **Hot Start (recommended)**: Start motor BEFORE adding beans to the bean dish
+5. Dump weighed coffee dose into the bean dish
+6. Grind time: ~10 seconds for a 20g dose
+7. When grinding completes, tap the clicker (behind funnels) to purge residual grounds
+8. Remove blind shaker or portafilter with your grounds
+
+## Sleep & Power
+- **Sleep mode**: Activates after 60 seconds of inactivity. LEDs dim
+- **Wake**: Press on/off button — instant wake, no warm-up needed
+- **Mains power**: Only shut off to turn LEDs completely off, or for overnight/prolonged non-use
+
+## Cleaning (daily, no tools required)
+1. Ensure grinder is powered down at mains and on/off button is NOT depressed
+2. Remove Upper Funnel: pull down to disengage from pins/magnets, then pull out
+3. Remove Lower Funnel: same method
+4. Brush coffee residue from grind chamber surfaces
+5. Damp towel wipe is OK
+6. **NEVER put any EG-1 parts in the dishwasher**
+7. Reassemble funnels in reverse order
+
+## Burr Sets Available (80mm flat burrs, magnetically mounted)
+- **DB-1 CORE** — ships standard with Mk.3. All-rounder for espresso through filter
+- **DB-2 ULTRA** — optimized for filter/pour-over. Highest clarity in the cup
+- **DB-3 BASE** — original Mk.1 burr set
+
+## In the Box
+Main unit, bean dish, blind shaker, shaker wood platen, shaker pad, power cord (US C13), spare wipers (3 sets), RDT bottle
+
+## Safety
+- Professional use — only trained/qualified personnel
+- Never place fingers or objects inside the exit spout
+- Always have upper and lower funnels in place during operation
+- Unplug from mains before servicing, inspecting, or cleaning
 `;

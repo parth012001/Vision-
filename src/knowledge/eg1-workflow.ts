@@ -1,72 +1,103 @@
 export const EG1_WORKFLOW = `
 # EG-1 Workflows & Procedures
 
-## Daily Startup Procedure
-1. Turn on the grinder (power switch on back)
-2. Check that the grind setting is where you left it
-3. If first use of the day, run a "purge" dose: grind 2-3g of sacrificial beans to clear any stale retained grounds
-4. Discard the purge grounds
-5. Ready to grind
+## Daily Startup
+1. Ensure mains power switch (back of unit) is ON — display reads "0"
+2. Check RPM is set to your preferred speed (500–700 RPM typical)
+3. Press on/off button to start motor (Hot Start recommended)
+4. Run a purge dose: grind 2–3g of sacrificial beans to clear stale retained grounds
+5. Tap the clicker behind the funnels to clear the spout
+6. Discard purge grounds. Ready to grind.
 
-## Dialing In New Coffee (Espresso)
-This is the most common procedure. Follow these steps:
+## Grinding a Dose (standard single-dose workflow)
+1. Weigh your dose on a scale (18g typical for espresso, 15–25g for filter)
+2. Optional: Apply RDT — 1–2 sprays from the included RDT bottle onto beans, stir/shake to coat. Reduces static significantly
+3. Press on/off button (Hot Start — motor spinning before beans enter)
+4. Dump beans into the bean dish
+5. Grounds collect in the blind shaker (or portafilter if using rail system)
+6. Wait ~10 seconds for a 20g dose to finish grinding
+7. Tap the clicker to purge residual grounds from the spout
+8. Remove blind shaker/portafilter with your grounds
 
-1. **Start with a baseline setting**: Set dial to 2.0 for medium roast, 1.5 for light, 2.5 for dark
-2. **Weigh your dose**: 18g is standard for most espresso baskets
-3. **Grind and prepare the puck**:
-   - Load beans into hopper
-   - Use APD to push beans through
-   - Use WDT tool to break clumps
-   - Tamp evenly
-4. **Pull the shot**:
-   - Target: 36g out (1:2 ratio) in 25-35 seconds
-   - Time from first drip
-5. **Evaluate**:
-   - Too fast (<20 sec): Grind finer by 0.2
-   - Too slow (>40 sec): Grind coarser by 0.2
-   - In range but sour: Grind slightly finer (0.1)
-   - In range but bitter: Grind slightly coarser (0.1)
-   - Balanced, sweet, clean: You're dialed in!
-6. **Iterate**: Usually takes 2-4 shots to dial in
+## Dialing In Espresso (the most common procedure)
+
+### Prerequisites
+- Know your burr lock position (see Grind Settings Guide for calibration)
+- Know which burr set is installed
+
+### Steps
+1. **Calculate starting point**: Burr lock position + offset for your roast level
+   - Medium roast: burr lock + 5.5
+   - Light roast: burr lock + 4.5
+   - Dark roast: burr lock + 6.5
+2. **Set the grind**: Lift locking ring, turn to calculated setting, release ring
+3. **Weigh 18g** of beans (standard espresso dose)
+4. **Grind** using Hot Start method
+5. **Prepare the puck**:
+   - Use WDT tool (thin needles) to break all clumps in the basket
+   - Level the bed of grounds
+   - Tamp evenly with consistent pressure
+6. **Pull the shot**:
+   - Target: 36g out (1:2 ratio) in 25–35 seconds
+   - Start timing from pump activation
+7. **Evaluate and adjust**:
+   - Shot too fast (<20s) or sour → go FINER by 1–2 ticks (5–10 μm)
+   - Shot too slow (>40s) or bitter → go COARSER by 1–2 ticks (5–10 μm)
+   - In range but sour → go finer by 1 tick
+   - In range but bitter → go coarser by 1 tick
+   - Balanced, sweet, clean → you're dialed in!
+8. **Iterate**: Usually takes 2–4 shots to dial in a new coffee
 
 ## Switching Between Espresso and Filter
-1. Note your current espresso setting (write it down or take a photo)
-2. Purge: Run motor briefly with no beans to clear chamber
-3. Adjust dial to filter range (e.g., 5.5 for V60)
-4. Grind a small purge dose at the new setting
-5. You're ready for filter brewing
-6. To go back: reverse the process, return to your noted espresso setting
+1. Note your current espresso setting (write down the dial number or take a photo)
+2. Run motor briefly with no beans to clear the chamber
+3. Calculate filter setting: burr lock + offset for your brew method (e.g., +11 for V60 center)
+4. Lift locking ring, turn to new setting
+5. Grind a small purge dose at the new setting (discard)
+6. Ready for filter brewing
+7. To switch back: reverse process, return to noted espresso setting, purge
 
-## Burr Cleaning Procedure
-1. Turn off the grinder
-2. Remove the APD bellows
-3. Remove the bean inlet / hopper assembly
-4. Use a soft brush to clean around the burrs
-5. Optionally remove burrs (3 screws) for deep cleaning
-6. Vacuum or brush out all debris
-7. Reassemble in reverse order
-8. Run a purge dose to re-season
-
-## RDT (Ross Droplet Technique) for Static
-1. Weigh your dose of beans
-2. Spray or drip 1-2 drops of water onto the beans
-3. Stir or shake to distribute
+## RDT (Ross Droplet Technique)
+The EG-1 ships with an RDT bottle for this purpose.
+1. Weigh your dose of beans in a cup
+2. Spray 1–2 pumps of water onto the beans
+3. Stir or shake to distribute moisture evenly
 4. Grind as normal
-5. Result: significantly less static, grounds fall cleanly into portafilter
+5. Result: dramatically less static — grounds fall cleanly into the blind shaker/portafilter
 
 ## WDT (Weiss Distribution Technique)
-1. After grinding into portafilter
-2. Use a WDT tool (thin needles/pins)
-3. Stir through the grounds in the basket
-4. Break up all clumps
+1. After grinding into the portafilter basket
+2. Use a WDT tool (thin needles/pins, 0.3–0.4mm diameter)
+3. Stir through the entire bed of grounds
+4. Break up ALL clumps — especially important with the EG-1's fine espresso grinds
 5. Level the surface
 6. Tamp evenly
 7. Result: more even extraction, no channeling
 
-## Troubleshooting Shots
-- **Channeling** (uneven flow, spraying): Improve WDT, ensure even tamp, check puck prep
-- **Sour shot**: Grind finer, increase yield, increase temperature
-- **Bitter shot**: Grind coarser, decrease yield, decrease temperature
+## Cleaning (daily — no tools required)
+1. Power down at mains switch (back of unit)
+2. Ensure on/off button is NOT depressed
+3. Pull down then out to remove Upper Funnel
+4. Pull down then out to remove Lower Funnel
+5. Brush coffee residue from grind chamber surfaces
+6. Wipe with damp towel if needed
+7. **NEVER dishwasher any EG-1 parts**
+8. Reassemble funnels in reverse
+9. Run a purge dose to re-season
+
+## Troubleshooting
+
+### Espresso Problems
+- **Channeling** (uneven/spraying flow): Improve WDT, ensure even tamp, check puck prep
+- **Sour shot**: Grind finer (1–2 ticks), or increase brew temperature on machine, or increase yield
+- **Bitter shot**: Grind coarser (1–2 ticks), or decrease brew temperature, or decrease yield
 - **Watery/thin**: Increase dose, grind finer, check for channeling
-- **Astringent**: Decrease temperature, coarsen grind slightly
+- **Astringent/drying**: Decrease temperature, coarsen grind slightly
+
+### Grinder Problems
+- **Motor won't start**: Check mains power switch on back. Check if on/off button is stuck
+- **Grinder jammed**: Use purge button (center of RPM knob) — it reverse-spins then bursts at MAX to clear jams
+- **Excessive static**: Use RDT (1–2 sprays of water on beans before grinding)
+- **Clumping**: Normal for espresso-fine grinds. Use WDT tool to break clumps
+- **Inconsistent grind**: Check if locking ring is seated properly, verify burr alignment
 `;
