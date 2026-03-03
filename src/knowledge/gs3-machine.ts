@@ -84,7 +84,7 @@ The AV version has a **digital keypad** with:
 9. **Evaluate**: Taste the shot. Adjust grind, dose, or temperature for next attempt
 
 ## Pre-infusion on GS3 AV
-The AV version uses the pump's full 9 bars from the start (no manual paddle control like the MP version). Some users modify their GS3 AV with a flow control device for more control, but stock AV is pump-pressure only.
+The AV version is primarily pump-driven, delivering full 9 bar pressure from the start (no manual paddle control like the MP version). Some users install a flow-control device for softer pre-infusion and more pressure profiling control, and certain unit revisions may behave slightly differently at the start of extraction.
 
 ## Important Operating Notes (from manual)
 - **Keep portafilter in the group** when not in use — it must stay heated for proper brewing

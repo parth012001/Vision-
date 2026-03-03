@@ -1,8 +1,8 @@
-import { EG1_MANUAL } from "./eg1-manual";
-import { EG1_GRIND_SETTINGS } from "./eg1-grind-settings";
-import { EG1_WORKFLOW } from "./eg1-workflow";
-import { GS3_MACHINE } from "./gs3-machine";
-import { VISUAL_RECOGNITION } from "./visual-recognition";
+import { EG1_MANUAL } from "@/knowledge/eg1-manual";
+import { EG1_GRIND_SETTINGS } from "@/knowledge/eg1-grind-settings";
+import { EG1_WORKFLOW } from "@/knowledge/eg1-workflow";
+import { GS3_MACHINE } from "@/knowledge/gs3-machine";
+import { VISUAL_RECOGNITION } from "@/knowledge/visual-recognition";
 
 const ROLE_PROMPT = `You are Vision, an expert barista coach and coffee equipment specialist. You help users operate their Weber Workshops EG-1 coffee grinder and La Marzocco GS3 AV espresso machine through a live camera and voice session — guiding them from grinding to pulling the perfect shot.
 

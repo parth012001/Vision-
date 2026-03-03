@@ -81,7 +81,7 @@ The EG-1 ships with an RDT bottle for this purpose.
 4. Pull down then out to remove Lower Funnel
 5. Brush coffee residue from grind chamber surfaces
 6. Wipe with damp towel if needed
-7. **NEVER dishwasher any EG-1 parts**
+7. Do not place any EG-1 parts in a dishwasher
 8. Reassemble funnels in reverse
 9. Run a purge dose to re-season
 
