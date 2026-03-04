@@ -225,6 +225,19 @@ export class GeminiLiveClient {
     this.session.sendRealtimeInput({ media: blob as any });
   }
 
+  sendVideoOrdered(base64Data: string) {
+    if (!this.session || !this.connected) return;
+    this.session.sendClientContent({
+      turns: [
+        {
+          role: "user",
+          parts: [{ inlineData: { data: base64Data, mimeType: "image/jpeg" } }],
+        },
+      ],
+      turnComplete: false,
+    });
+  }
+
   sendText(text: string) {
     if (!this.session || !this.connected) return;
     this.session.sendClientContent({

@@ -6,6 +6,7 @@ import { useAudioCapture } from "./useAudioCapture";
 import { useAudioPlayback } from "./useAudioPlayback";
 import { useCameraCapture } from "./useCameraCapture";
 import { buildSystemPrompt } from "@/knowledge/system-prompt";
+import { captureFrame } from "@/lib/camera-utils";
 import {
   RECONNECT_MAX_ATTEMPTS,
   RECONNECT_BASE_DELAY_MS,
@@ -127,6 +128,15 @@ export function useLiveSession() {
               currentTextRef.current = "";
             }
             setAiState("listening");
+
+            // Inject a fresh frame via the ordered path so the next
+            // model response starts from the latest visual state.
+            if (videoRef.current && clientRef.current?.isConnected) {
+              const freshFrame = captureFrame(videoRef.current);
+              if (freshFrame) {
+                clientRef.current.sendVideoOrdered(freshFrame);
+              }
+            }
           },
           onInterrupted: () => {
             stopPlayback();
