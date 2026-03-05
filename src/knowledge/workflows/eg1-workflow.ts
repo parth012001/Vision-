@@ -1,23 +1,48 @@
 export const EG1_WORKFLOW = `
 # EG-1 Workflows & Procedures
 
+**IMPORTANT: VERIFY checkpoints**
+Before giving each instruction, check the VERIFY condition visually. If the condition is NOT met, say the "If not" phrase instead of proceeding.
+
 ## Daily Startup
-1. Ensure mains power switch (back of unit) is ON — display reads "0"
-2. Check RPM is set to your preferred speed (500–700 RPM typical)
-3. Press on/off button to start motor (Hot Start recommended)
-4. Run a purge dose: grind 2–3g of sacrificial beans to clear stale retained grounds
-5. Tap the clicker behind the funnels to clear the spout
-6. Discard purge grounds. Ready to grind.
+1. **VERIFY**: Display shows "0" or any number (grinder has power)
+   → If not: "First, let's turn on your grinder — flip the power switch on the back of the unit"
+2. **VERIFY**: Display is visible and showing RPM or "0"
+   → If not: "Check the mains power switch on the back — it should be flipped to ON"
+3. Check RPM is set to your preferred speed (500–700 RPM typical)
+4. Press on/off button to start motor (Hot Start recommended)
+5. **VERIFY**: LED ring is glowing and motor is spinning
+   → If not: "Press the round on/off button on the front of the base"
+6. Run a purge dose: grind 2–3g of sacrificial beans to clear stale retained grounds
+7. Tap the clicker behind the funnels to clear the spout
+8. Discard purge grounds. Ready to grind.
 
 ## Grinding a Dose (standard single-dose workflow)
-1. Weigh your dose on a scale (18g typical for espresso, 15–25g for filter)
-2. Optional: Apply RDT — 1–2 sprays from the included RDT bottle onto beans, stir/shake to coat. Reduces static significantly
-3. Press on/off button (Hot Start — motor spinning before beans enter)
+
+### Weighing Beans
+1. **VERIFY**: Scale display is lit (shows numbers)
+   → If not: "First, let's turn on your scale — look for the power button"
+2. Place a small cup or container on the scale
+3. **VERIFY**: Display shows a weight (any number)
+   → If not: "Tap the scale to wake it up, or check if it's plugged in"
+4. Zero the scale (press the button marked T, TARE, or 0)
+5. **VERIFY**: Display shows 0.0 or 0g
+   → If not: "Try the zero button again — it might be labeled T or TARE"
+6. Scoop beans into the cup until display shows 18g (or your target dose)
+
+### Grinding
+1. **VERIFY**: EG-1 LED ring is glowing (grinder is on)
+   → If not: "Let's turn on the grinder — press the round button on the front"
+2. Optional: Apply RDT — 1–2 sprays from the RDT bottle onto beans, stir to coat
+3. **VERIFY**: Motor is spinning (you can hear it, LED ring is bright)
+   → If not: "Press the on/off button to start the motor — we want it spinning before the beans go in"
 4. Dump beans into the bean dish
 5. Grounds collect in the blind shaker (or portafilter if using rail system)
-6. Wait ~10 seconds for a 20g dose to finish grinding
-7. Tap the clicker to purge residual grounds from the spout
-8. Remove blind shaker/portafilter with your grounds
+6. Wait ~10 seconds for grinding to finish
+7. **VERIFY**: Motor sound has returned to idle (no more grinding noise)
+   → If not: "Let it finish grinding — you'll hear the sound change when it's done"
+8. Tap the clicker to purge residual grounds from the spout
+9. Remove blind shaker/portafilter with your grounds
 
 ## Dialing In Espresso (the most common procedure)
 
@@ -31,13 +56,21 @@ export const EG1_WORKFLOW = `
    - Light roast: burr lock + 4.5
    - Dark roast: burr lock + 6.5
 2. **Set the grind**: Lift locking ring, turn to calculated setting, release ring
-3. **Weigh 18g** of beans (standard espresso dose)
-4. **Grind** using Hot Start method
+3. **Weigh 18g** of beans (follow Weighing Beans procedure above)
+4. **Grind** (follow Grinding procedure above)
 5. **Prepare the puck**:
+   - **VERIFY**: Grounds are in the portafilter basket
+     → If not: "Transfer the grounds from the blind shaker into your portafilter basket"
    - Use WDT tool (thin needles) to break all clumps in the basket
    - Level the bed of grounds
    - Tamp evenly with consistent pressure
+   - **VERIFY**: Surface is flat and level after tamping
+     → If not: "Give it another tamp — press straight down and keep it level"
 6. **Pull the shot**:
+   - **VERIFY**: GS3 is warmed up (pressure gauge in normal range)
+     → If not: "Let's wait for the machine to warm up — the pressure gauge should be in the green zone"
+   - **VERIFY**: Portafilter is locked into the group head
+     → If not: "Lock the portafilter into the group head — push up and turn right until it's snug"
    - Target: 36g out (1:2 ratio) in 25–35 seconds
    - Start timing from pump activation
 7. **Evaluate and adjust**:

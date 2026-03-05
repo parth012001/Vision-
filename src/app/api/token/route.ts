@@ -1,7 +1,7 @@
 import { GoogleGenAI, Modality } from "@google/genai";
 import { NextResponse } from "next/server";
 import { EPHEMERAL_TOKEN_EXPIRE_MS, LIVE_MODEL } from "@/lib/constants";
-import { buildSystemPrompt } from "@/knowledge/system-prompt";
+import { buildSystemPrompt } from "@/knowledge/systemPrompt/system-prompt";
 
 export async function POST() {
   const apiKey = process.env.GEMINI_API_KEY;
