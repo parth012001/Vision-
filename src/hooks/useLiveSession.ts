@@ -5,7 +5,7 @@ import { GeminiLiveClient } from "@/lib/gemini-live-client";
 import { useAudioCapture } from "./useAudioCapture";
 import { useAudioPlayback } from "./useAudioPlayback";
 import { useCameraCapture } from "./useCameraCapture";
-import { buildSystemPrompt } from "@/knowledge/systemPrompt/system-prompt";
+import { buildSystemPrompt } from "@/knowledge/personality/system-prompt";
 import { captureFrame } from "@/lib/camera-utils";
 import {
   RECONNECT_MAX_ATTEMPTS,
