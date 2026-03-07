@@ -21,11 +21,19 @@ import {
   handleFunctionCall,
 } from "@/lib/state-machine";
 import { WatchdogTimer } from "@/lib/watchdog";
+import { EventCollector } from "@/lib/event-collector";
 import type { SessionStatus, AIState, TranscriptEntry } from "@/types/session";
 import type { StepGuidancePayload } from "@/lib/state-machine";
 
 function sleep(ms: number) {
   return new Promise<void>((resolve) => setTimeout(resolve, ms));
+}
+
+function detectDeviceType(): "mobile" | "tablet" | "desktop" {
+  const ua = navigator.userAgent;
+  if (/tablet|ipad/i.test(ua)) return "tablet";
+  if (/mobile|iphone|android/i.test(ua)) return "mobile";
+  return "desktop";
 }
 
 export function useLiveSession() {
@@ -53,6 +61,9 @@ export function useLiveSession() {
   const unmountedRef = useRef(false);
   const resumptionHandleRef = useRef<string | undefined>(undefined);
   const goAwayTriggeredRef = useRef(false);
+  const collectorRef = useRef<EventCollector | null>(null);
+  const sessionIdRef = useRef("");
+  const sessionStartTimeRef = useRef(0);
 
   const {
     playChunk,
@@ -107,6 +118,8 @@ export function useLiveSession() {
 
       const localAttempt = ++connectAttemptRef.current;
       const isStale = () => connectAttemptRef.current !== localAttempt;
+      const connectStartTime = Date.now();
+      collectorRef.current?.setTraceId(crypto.randomUUID());
 
       try {
         setStatus(isReconnect ? "reconnecting" : "connecting");
@@ -179,6 +192,10 @@ export function useLiveSession() {
           onError: (err) => {
             if (clientRef.current !== client) return;
             console.error("Live session error:", err);
+            collectorRef.current?.track("session.error", {
+              errorMessage: err.message,
+              sessionAgeMs: Date.now() - sessionStartTimeRef.current,
+            });
             watchdogRef.current?.stop();
             stopMic();
             stopCamera();
@@ -199,6 +216,10 @@ export function useLiveSession() {
           },
           onClose: () => {
             if (clientRef.current !== client) return;
+            collectorRef.current?.track("session.disconnected", {
+              reason: "close" as const,
+              sessionDurationMs: Date.now() - sessionStartTimeRef.current,
+            });
             watchdogRef.current?.stop();
             stopMic();
             stopCamera();
@@ -221,6 +242,10 @@ export function useLiveSession() {
           },
           onGoAway: () => {
             if (!client || clientRef.current !== client) return;
+            collectorRef.current?.track("session.disconnected", {
+              reason: "goaway" as const,
+              sessionDurationMs: Date.now() - sessionStartTimeRef.current,
+            });
             goAwayTriggeredRef.current = true;
             watchdogRef.current?.stop();
             stopMic();
@@ -266,9 +291,11 @@ export function useLiveSession() {
           },
           onReconnect: () => {
             if (clientRef.current?.isConnected) {
-              // Force a reconnect by disconnecting — the onClose handler
-              // will trigger scheduleReconnect if appropriate
               console.warn("Watchdog: AI unresponsive for 30s, forcing reconnect");
+              collectorRef.current?.track("session.disconnected", {
+                reason: "watchdog" as const,
+                sessionDurationMs: Date.now() - sessionStartTimeRef.current,
+              });
               watchdogRef.current?.stop();
               const prevClient = clientRef.current;
               clientRef.current = null;
@@ -287,6 +314,10 @@ export function useLiveSession() {
         }
 
         setStatus("connected");
+        collectorRef.current?.track("session.connected", {
+          connectionDurationMs: Date.now() - connectStartTime,
+          isReconnect,
+        });
         wasConnectedRef.current = true;
         setAiState("listening");
         await startMic();
@@ -345,6 +376,11 @@ export function useLiveSession() {
 
       setStatus("reconnecting");
       setAiState("idle");
+      const reconnectDowntimeStart = Date.now();
+      collectorRef.current?.track("session.reconnecting", {
+        attemptNumber: attempt,
+        reason: isGoAway ? "goaway" : "close",
+      });
 
       // Skip delay on first attempt if triggered by GoAway (proactive reconnect)
       if (!(isGoAway && attempt === 1)) {
@@ -360,6 +396,10 @@ export function useLiveSession() {
 
       try {
         await connectInner(true);
+        collectorRef.current?.track("session.reconnected", {
+          attemptNumber: attempt,
+          downtimeMs: Date.now() - reconnectDowntimeStart,
+        });
         // Success — show toast
         setShowReconnectToast(true);
         reconnectTimeoutRef.current = setTimeout(() => {
@@ -387,6 +427,17 @@ export function useLiveSession() {
     wasConnectedRef.current = false;
     resumptionHandleRef.current = undefined;
 
+    // Initialize event collector for this session
+    const sessionId = crypto.randomUUID();
+    sessionIdRef.current = sessionId;
+    sessionStartTimeRef.current = Date.now();
+    collectorRef.current?.destroy();
+    collectorRef.current = new EventCollector({ sessionId });
+    collectorRef.current.track("session.started", {
+      userAgent: navigator.userAgent,
+      deviceType: detectDeviceType(),
+    });
+
     // connectInner increments connectAttemptRef on entry; snapshot what it'll become
     const expectedAttempt = connectAttemptRef.current + 1;
 
@@ -403,6 +454,11 @@ export function useLiveSession() {
 
   const disconnect = useCallback(() => {
     userDisconnectedRef.current = true;
+    collectorRef.current?.track("session.disconnected", {
+      reason: "user" as const,
+      sessionDurationMs: Date.now() - sessionStartTimeRef.current,
+    });
+    collectorRef.current?.flush();
     wasConnectedRef.current = false;
     resumptionHandleRef.current = undefined;
 
@@ -452,6 +508,8 @@ export function useLiveSession() {
       }
       clientRef.current?.disconnect();
       clientRef.current = null;
+      collectorRef.current?.destroy();
+      collectorRef.current = null;
       stopMic();
       stopCamera();
       cleanupAudio();
