@@ -196,6 +196,10 @@ export function useLiveSession() {
               errorMessage: err.message,
               sessionAgeMs: Date.now() - sessionStartTimeRef.current,
             });
+            collectorRef.current?.track("session.disconnected", {
+              reason: "error",
+              sessionDurationMs: Date.now() - sessionStartTimeRef.current,
+            });
             watchdogRef.current?.stop();
             stopMic();
             stopCamera();
@@ -207,7 +211,7 @@ export function useLiveSession() {
 
             // Auto-reconnect if this was an established session and user didn't disconnect
             if (!userDisconnectedRef.current && wasConnectedRef.current && prevClient === client) {
-              scheduleReconnect();
+              scheduleReconnect("error");
             } else {
               setError(err.message);
               setStatus("error");
@@ -231,7 +235,7 @@ export function useLiveSession() {
 
             // Auto-reconnect if this was an established session and user didn't disconnect
             if (!userDisconnectedRef.current && wasConnectedRef.current && prevClient === client) {
-              scheduleReconnect();
+              scheduleReconnect("close");
             } else {
               setStatus("disconnected");
               setAiState("idle");
@@ -255,7 +259,7 @@ export function useLiveSession() {
             clientRef.current = null;
             currentTextRef.current = "";
             client.disconnect();
-            scheduleReconnect();
+            scheduleReconnect("goaway");
           },
         });
 
@@ -300,7 +304,7 @@ export function useLiveSession() {
               const prevClient = clientRef.current;
               clientRef.current = null;
               prevClient.disconnect();
-              scheduleReconnect();
+              scheduleReconnect("watchdog");
             }
           },
         });
@@ -367,7 +371,7 @@ export function useLiveSession() {
   );
 
   // eslint-disable-next-line @typescript-eslint/no-use-before-define -- mutual recursion with connectInner handlers
-  const scheduleReconnect = useCallback(async () => {
+  const scheduleReconnect = useCallback(async (disconnectReason: "error" | "close" | "goaway" | "watchdog" = "close") => {
     const isGoAway = goAwayTriggeredRef.current;
     goAwayTriggeredRef.current = false;
 
@@ -379,7 +383,7 @@ export function useLiveSession() {
       const reconnectDowntimeStart = Date.now();
       collectorRef.current?.track("session.reconnecting", {
         attemptNumber: attempt,
-        reason: isGoAway ? "goaway" : "close",
+        reason: disconnectReason,
       });
 
       // Skip delay on first attempt if triggered by GoAway (proactive reconnect)

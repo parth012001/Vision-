@@ -1,5 +1,4 @@
 import { NextRequest, NextResponse } from "next/server";
-import type { SessionEvent } from "@/types/events";
 
 export async function POST(request: NextRequest) {
   try {
@@ -12,24 +11,48 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const events: SessionEvent[] = body.events;
+    const events: unknown[] = body.events;
 
+    // Validate entire batch before logging anything
     for (const event of events) {
-      if (!event.event || !event.sessionId || !event.timestamp) {
+      if (typeof event !== "object" || event === null) {
         return NextResponse.json(
-          { error: "Each event must have 'event', 'sessionId', and 'timestamp'" },
+          { error: "Each event must be an object" },
           { status: 400 }
         );
       }
+      const e = event as Record<string, unknown>;
+      if (typeof e.event !== "string" || e.event.length === 0) {
+        return NextResponse.json(
+          { error: "Each event must have a non-empty 'event' string" },
+          { status: 400 }
+        );
+      }
+      if (typeof e.sessionId !== "string" || e.sessionId.length === 0) {
+        return NextResponse.json(
+          { error: "Each event must have a non-empty 'sessionId' string" },
+          { status: 400 }
+        );
+      }
+      if (typeof e.timestamp !== "number" || !Number.isFinite(e.timestamp)) {
+        return NextResponse.json(
+          { error: "Each event must have a finite numeric 'timestamp'" },
+          { status: 400 }
+        );
+      }
+    }
 
+    // Batch validated — log all events
+    for (const event of events) {
+      const e = event as Record<string, unknown>;
       console.log(
         "[observability]",
         JSON.stringify({
-          event: event.event,
-          sessionId: event.sessionId,
-          traceId: event.traceId,
-          timestamp: event.timestamp,
-          data: event.data,
+          event: e.event,
+          sessionId: e.sessionId,
+          traceId: e.traceId,
+          timestamp: e.timestamp,
+          data: e.data,
         })
       );
     }

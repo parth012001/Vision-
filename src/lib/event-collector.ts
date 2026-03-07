@@ -1,4 +1,4 @@
-import type { EventName, SessionEvent } from "@/types/events";
+import type { EventName, EventDataMap, SessionEvent } from "@/types/events";
 
 export interface EventCollectorOptions {
   sessionId: string;
@@ -17,7 +17,7 @@ export class EventCollector {
   private flushTimer: ReturnType<typeof setTimeout> | null = null;
   private destroyed = false;
 
-  private boundBeforeUnload: (() => void) | null = null;
+  private boundPageHide: (() => void) | null = null;
   private boundVisibilityChange: (() => void) | null = null;
 
   constructor(options: EventCollectorOptions) {
@@ -27,11 +27,11 @@ export class EventCollector {
     this.flushIntervalMs = options.flushIntervalMs ?? 30_000;
 
     if (typeof window !== "undefined") {
-      this.boundBeforeUnload = () => this.flush();
+      this.boundPageHide = () => this.flush();
       this.boundVisibilityChange = () => {
         if (document.visibilityState === "hidden") this.flush();
       };
-      window.addEventListener("beforeunload", this.boundBeforeUnload);
+      window.addEventListener("pagehide", this.boundPageHide);
       document.addEventListener("visibilitychange", this.boundVisibilityChange);
     }
   }
@@ -40,7 +40,7 @@ export class EventCollector {
     this.traceId = id;
   }
 
-  track(event: EventName, data: Record<string, unknown> = {}): void {
+  track<E extends EventName>(event: E, data: EventDataMap[E]): void {
     if (this.destroyed) return;
 
     this.buffer.push({
@@ -49,7 +49,7 @@ export class EventCollector {
       traceId: this.traceId,
       timestamp: Date.now(),
       data,
-    });
+    } as SessionEvent);
 
     if (this.buffer.length >= this.flushThreshold) {
       this.flush();
@@ -74,8 +74,8 @@ export class EventCollector {
     this.clearFlushTimer();
 
     if (typeof window !== "undefined") {
-      if (this.boundBeforeUnload) {
-        window.removeEventListener("beforeunload", this.boundBeforeUnload);
+      if (this.boundPageHide) {
+        window.removeEventListener("pagehide", this.boundPageHide);
       }
       if (this.boundVisibilityChange) {
         document.removeEventListener(
@@ -96,7 +96,10 @@ export class EventCollector {
         const blob = new Blob([JSON.stringify({ events })], {
           type: "application/json",
         });
-        navigator.sendBeacon(this.endpoint, blob);
+        const sent = navigator.sendBeacon(this.endpoint, blob);
+        if (!sent) {
+          this.sendEvents(events);
+        }
       } else {
         this.sendEvents(events);
       }
