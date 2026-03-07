@@ -102,6 +102,25 @@ describe("EventCollector", () => {
     collector.destroy();
   });
 
+  it("retries once on non-2xx response", async () => {
+    fetchMock
+      .mockResolvedValueOnce({ ok: false, status: 500 })
+      .mockResolvedValueOnce({ ok: true });
+
+    const collector = new EventCollector({
+      sessionId: "s1",
+      flushThreshold: 1,
+    });
+
+    collector.track("session.started", STARTED_DATA);
+
+    await vi.advanceTimersByTimeAsync(0);
+    await vi.advanceTimersByTimeAsync(0);
+
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+    collector.destroy();
+  });
+
   it("retries once on fetch failure and drops on second", async () => {
     fetchMock
       .mockRejectedValueOnce(new Error("network"))

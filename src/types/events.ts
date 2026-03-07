@@ -39,9 +39,11 @@ export interface SessionDisconnectedData {
   sessionDurationMs: number;
 }
 
+export type ReconnectReason = Exclude<DisconnectReason, "user">;
+
 export interface SessionReconnectingData {
   attemptNumber: number;
-  reason: "goaway" | "close" | "error" | "watchdog";
+  reason: ReconnectReason;
 }
 
 export interface SessionReconnectedData {

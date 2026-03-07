@@ -127,10 +127,16 @@ export class EventCollector {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ events }),
       keepalive: true,
-    }).catch(() => {
-      if (!isRetry) {
-        this.sendEvents(events, true);
-      }
-    });
+    })
+      .then((res) => {
+        if (!res.ok && !isRetry) {
+          this.sendEvents(events, true);
+        }
+      })
+      .catch(() => {
+        if (!isRetry) {
+          this.sendEvents(events, true);
+        }
+      });
   }
 }

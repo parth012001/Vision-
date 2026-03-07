@@ -23,6 +23,7 @@ import {
 import { WatchdogTimer } from "@/lib/watchdog";
 import { EventCollector } from "@/lib/event-collector";
 import type { SessionStatus, AIState, TranscriptEntry } from "@/types/session";
+import type { ReconnectReason } from "@/types/events";
 import type { StepGuidancePayload } from "@/lib/state-machine";
 
 function sleep(ms: number) {
@@ -119,7 +120,9 @@ export function useLiveSession() {
       const localAttempt = ++connectAttemptRef.current;
       const isStale = () => connectAttemptRef.current !== localAttempt;
       const connectStartTime = Date.now();
-      collectorRef.current?.setTraceId(crypto.randomUUID());
+      if (isReconnect) {
+        collectorRef.current?.setTraceId(crypto.randomUUID());
+      }
 
       try {
         setStatus(isReconnect ? "reconnecting" : "connecting");
@@ -371,7 +374,7 @@ export function useLiveSession() {
   );
 
   // eslint-disable-next-line @typescript-eslint/no-use-before-define -- mutual recursion with connectInner handlers
-  const scheduleReconnect = useCallback(async (disconnectReason: "error" | "close" | "goaway" | "watchdog" = "close") => {
+  const scheduleReconnect = useCallback(async (disconnectReason: ReconnectReason = "close") => {
     const isGoAway = goAwayTriggeredRef.current;
     goAwayTriggeredRef.current = false;
 
@@ -436,8 +439,10 @@ export function useLiveSession() {
     sessionIdRef.current = sessionId;
     sessionStartTimeRef.current = Date.now();
     collectorRef.current?.destroy();
-    collectorRef.current = new EventCollector({ sessionId });
-    collectorRef.current.track("session.started", {
+    const collector = new EventCollector({ sessionId });
+    collector.setTraceId(crypto.randomUUID());
+    collectorRef.current = collector;
+    collector.track("session.started", {
       userAgent: navigator.userAgent,
       deviceType: detectDeviceType(),
     });
@@ -509,6 +514,12 @@ export function useLiveSession() {
       if (reconnectTimeoutRef.current) {
         clearTimeout(reconnectTimeoutRef.current);
         reconnectTimeoutRef.current = null;
+      }
+      if (collectorRef.current && sessionStartTimeRef.current > 0) {
+        collectorRef.current.track("session.disconnected", {
+          reason: "user",
+          sessionDurationMs: Date.now() - sessionStartTimeRef.current,
+        });
       }
       clientRef.current?.disconnect();
       clientRef.current = null;
