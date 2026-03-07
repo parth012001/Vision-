@@ -65,6 +65,7 @@ export function useLiveSession() {
   const collectorRef = useRef<EventCollector | null>(null);
   const sessionIdRef = useRef("");
   const sessionStartTimeRef = useRef(0);
+  const terminalEventRecordedRef = useRef(false);
 
   const {
     playChunk,
@@ -203,6 +204,7 @@ export function useLiveSession() {
               reason: "error",
               sessionDurationMs: Date.now() - sessionStartTimeRef.current,
             });
+            terminalEventRecordedRef.current = true;
             watchdogRef.current?.stop();
             stopMic();
             stopCamera();
@@ -227,6 +229,7 @@ export function useLiveSession() {
               reason: "close" as const,
               sessionDurationMs: Date.now() - sessionStartTimeRef.current,
             });
+            terminalEventRecordedRef.current = true;
             watchdogRef.current?.stop();
             stopMic();
             stopCamera();
@@ -253,6 +256,7 @@ export function useLiveSession() {
               reason: "goaway" as const,
               sessionDurationMs: Date.now() - sessionStartTimeRef.current,
             });
+            terminalEventRecordedRef.current = true;
             goAwayTriggeredRef.current = true;
             watchdogRef.current?.stop();
             stopMic();
@@ -303,6 +307,7 @@ export function useLiveSession() {
                 reason: "watchdog" as const,
                 sessionDurationMs: Date.now() - sessionStartTimeRef.current,
               });
+              terminalEventRecordedRef.current = true;
               watchdogRef.current?.stop();
               const prevClient = clientRef.current;
               clientRef.current = null;
@@ -435,6 +440,7 @@ export function useLiveSession() {
     resumptionHandleRef.current = undefined;
 
     // Initialize event collector for this session
+    terminalEventRecordedRef.current = false;
     const sessionId = crypto.randomUUID();
     sessionIdRef.current = sessionId;
     sessionStartTimeRef.current = Date.now();
@@ -467,6 +473,7 @@ export function useLiveSession() {
       reason: "user" as const,
       sessionDurationMs: Date.now() - sessionStartTimeRef.current,
     });
+    terminalEventRecordedRef.current = true;
     collectorRef.current?.flush();
     wasConnectedRef.current = false;
     resumptionHandleRef.current = undefined;
@@ -515,7 +522,7 @@ export function useLiveSession() {
         clearTimeout(reconnectTimeoutRef.current);
         reconnectTimeoutRef.current = null;
       }
-      if (collectorRef.current && sessionStartTimeRef.current > 0) {
+      if (collectorRef.current && sessionStartTimeRef.current > 0 && !terminalEventRecordedRef.current) {
         collectorRef.current.track("session.disconnected", {
           reason: "user",
           sessionDurationMs: Date.now() - sessionStartTimeRef.current,
