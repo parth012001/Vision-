@@ -174,15 +174,27 @@ export class GeminiLiveClient {
 
     // Tool calls — Gemini requests function execution
     const toolCall = msg.toolCall as Record<string, unknown> | undefined;
-    if (toolCall?.functionCalls) {
-      const functionCalls = (
-        toolCall.functionCalls as Array<Record<string, unknown>>
-      ).map((fc) => ({
-        name: fc.name as string,
-        args: (fc.args as Record<string, unknown>) ?? {},
-        id: fc.id as string,
-      }));
-      this.handlers.onToolCall?.(functionCalls);
+    if (toolCall?.functionCalls && Array.isArray(toolCall.functionCalls)) {
+      const raw = toolCall.functionCalls as Array<Record<string, unknown>>;
+      const functionCalls = raw
+        .filter(
+          (fc): fc is Record<string, unknown> =>
+            typeof fc === "object" &&
+            fc !== null &&
+            typeof fc.name === "string" &&
+            typeof fc.id === "string"
+        )
+        .map((fc) => ({
+          name: fc.name as string,
+          args:
+            typeof fc.args === "object" && fc.args !== null
+              ? (fc.args as Record<string, unknown>)
+              : {},
+          id: fc.id as string,
+        }));
+      if (functionCalls.length > 0) {
+        this.handlers.onToolCall?.(functionCalls);
+      }
     }
 
     const serverContent = msg.serverContent as

@@ -22,6 +22,7 @@ export class WatchdogTimer {
   }
 
   start(): void {
+    if (this.running) return;
     this.running = true;
     this.scheduleTimers();
   }
