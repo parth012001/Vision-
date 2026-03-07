@@ -1,5 +1,5 @@
 import { GoogleGenAI, Modality, Session } from "@google/genai";
-import type { LiveConnectConfig, LiveServerMessage } from "@google/genai";
+import type { LiveConnectConfig, LiveServerMessage, Tool, FunctionResponse } from "@google/genai";
 import {
   LIVE_MODEL,
   COMPRESSION_TRIGGER_TOKENS,
@@ -9,6 +9,7 @@ import {
 export interface LiveConnectOptions {
   systemInstruction?: string;
   resumptionHandle?: string;
+  tools?: Tool[];
 }
 
 export type LiveEventHandler = {
@@ -21,6 +22,7 @@ export type LiveEventHandler = {
   onOpen?: () => void;
   onGoAway?: (timeLeftMs: number) => void;
   onSessionResumptionUpdate?: (handle: string, resumable: boolean) => void;
+  onToolCall?: (functionCalls: Array<{ name: string; args: Record<string, unknown>; id: string }>) => void;
 };
 
 export class GeminiLiveClient {
@@ -65,6 +67,7 @@ export class GeminiLiveClient {
       ...(options.resumptionHandle
         ? { sessionResumption: { handle: options.resumptionHandle } }
         : {}),
+      ...(options.tools ? { tools: options.tools } : {}),
     };
 
     // Bump generation so any in-flight connect from a previous call
@@ -169,6 +172,19 @@ export class GeminiLiveClient {
       }
     }
 
+    // Tool calls — Gemini requests function execution
+    const toolCall = msg.toolCall as Record<string, unknown> | undefined;
+    if (toolCall?.functionCalls) {
+      const functionCalls = (
+        toolCall.functionCalls as Array<Record<string, unknown>>
+      ).map((fc) => ({
+        name: fc.name as string,
+        args: (fc.args as Record<string, unknown>) ?? {},
+        id: fc.id as string,
+      }));
+      this.handlers.onToolCall?.(functionCalls);
+    }
+
     const serverContent = msg.serverContent as
       | Record<string, unknown>
       | undefined;
@@ -236,6 +252,11 @@ export class GeminiLiveClient {
       ],
       turnComplete: false,
     });
+  }
+
+  sendToolResponse(functionResponses: FunctionResponse[]) {
+    if (!this.session || !this.connected) return;
+    this.session.sendToolResponse({ functionResponses });
   }
 
   sendText(text: string) {

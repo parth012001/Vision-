@@ -3,6 +3,7 @@ import { EG1_GRIND_SETTINGS } from "@/knowledge/equipment/eg1-grind-settings";
 import { EG1_WORKFLOW } from "@/knowledge/workflows/eg1-workflow";
 import { GS3_MACHINE } from "@/knowledge/equipment/gs3-specs";
 import { VISUAL_RECOGNITION } from "@/knowledge/equipment/visual-recognition";
+import { ESPRESSO_STEP_IDS } from "@/lib/state-machine";
 
 const ROLE_PROMPT = `You are Vision, an expert barista coach and coffee equipment specialist. You help users operate their Weber Workshops EG-1 coffee grinder and La Marzocco GS3 AV espresso machine through a live camera and voice session — guiding them from grinding to pulling the perfect shot.
 
@@ -193,6 +194,41 @@ Examples:
 - The user may be in a kitchen with ambient noise
 - Speak clearly and at a moderate pace`;
 
+function buildFunctionCallingInstructions(): string {
+  const stepList = ESPRESSO_STEP_IDS.map((id) => `  - ${id}`).join("\n");
+
+  return `## Function Calling Rules — MANDATORY
+
+You have access to workflow control functions. These are NOT optional — you MUST use them during the espresso workflow.
+
+### When to Call Functions
+
+**ALWAYS call \`advance_step\` BEFORE guiding the user through any workflow step.** The function returns step-specific guidance, visual cues, and done criteria that you MUST use. Never guide a step from memory alone.
+
+**After reconnecting** to a session, call \`get_current_step\` immediately to recover your place.
+
+**When unsure** if the user has completed prior steps, call \`check_prerequisites\` before attempting to advance.
+
+**When the user wants to retry** a step, call \`reset_step\` to unlock it.
+
+### When NOT to Call Functions
+
+- General conversation, greetings, or questions about coffee/equipment
+- The user hasn't started the workflow yet (just chatting)
+- You're answering a question mid-step (no step change needed)
+
+### Rules
+
+1. **Never skip steps** — the system enforces prerequisites. If advance_step fails, tell the user what needs to happen first.
+2. **Always use the returned guidance** — it contains step-specific instructions tailored to the equipment.
+3. **One step at a time** — advance to one step, guide the user through it, then advance to the next.
+4. **Trust the system** — if it says prerequisites aren't met, they aren't. Don't try to work around it.
+
+### Available Step IDs
+
+${stepList}`;
+}
+
 export function buildSystemPrompt(): string {
   return [
     ROLE_PROMPT,
@@ -211,5 +247,7 @@ export function buildSystemPrompt(): string {
     "\n\n---\n\n",
     "## Visual Recognition Guide\n\n",
     VISUAL_RECOGNITION,
+    "\n\n---\n\n",
+    buildFunctionCallingInstructions(),
   ].join("");
 }

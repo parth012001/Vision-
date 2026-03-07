@@ -11,8 +11,18 @@ import {
   RECONNECT_MAX_ATTEMPTS,
   RECONNECT_BASE_DELAY_MS,
   RECONNECT_TOAST_DURATION_MS,
+  WATCHDOG_NUDGE_MS,
+  WATCHDOG_RECONNECT_MS,
 } from "@/lib/constants";
+import {
+  WorkflowEngine,
+  ESPRESSO_WORKFLOW,
+  buildToolDeclarations,
+  handleFunctionCall,
+} from "@/lib/state-machine";
+import { WatchdogTimer } from "@/lib/watchdog";
 import type { SessionStatus, AIState, TranscriptEntry } from "@/types/session";
+import type { StepGuidancePayload } from "@/lib/state-machine";
 
 function sleep(ms: number) {
   return new Promise<void>((resolve) => setTimeout(resolve, ms));
@@ -26,8 +36,15 @@ export function useLiveSession() {
   const [transcript, setTranscript] = useState<TranscriptEntry[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [showReconnectToast, setShowReconnectToast] = useState(false);
+  const [workflowProgress, setWorkflowProgress] = useState<StepGuidancePayload["progress"] | null>(null);
 
   const clientRef = useRef<GeminiLiveClient | null>(null);
+  const workflowEngineRef = useRef<WorkflowEngine>(new WorkflowEngine(ESPRESSO_WORKFLOW));
+  const watchdogRef = useRef<WatchdogTimer | null>(null);
+
+  const toolDeclarations = useRef(
+    buildToolDeclarations(ESPRESSO_WORKFLOW)
+  ).current;
   const connectAttemptRef = useRef(0);
   const currentTextRef = useRef<string>("");
   const userDisconnectedRef = useRef(false);
@@ -117,12 +134,15 @@ export function useLiveSession() {
         client = new GeminiLiveClient(token, {
           onOpen: () => {},
           onAudio: (base64Pcm) => {
+            watchdogRef.current?.kick();
             playChunk(base64Pcm);
           },
           onText: (text) => {
+            watchdogRef.current?.kick();
             currentTextRef.current += text;
           },
           onTurnComplete: () => {
+            watchdogRef.current?.kick();
             if (currentTextRef.current) {
               addTranscriptEntry("model", currentTextRef.current);
               currentTextRef.current = "";
@@ -138,6 +158,19 @@ export function useLiveSession() {
               }
             }
           },
+          onToolCall: (functionCalls) => {
+            watchdogRef.current?.kick();
+            const responses = functionCalls.map((fc) => {
+              const output = handleFunctionCall(workflowEngineRef.current, fc);
+              // Update progress state if the response contains it
+              const data = output.response.data as Record<string, unknown> | undefined;
+              if (output.response.success && data && "progress" in data) {
+                setWorkflowProgress(data.progress as StepGuidancePayload["progress"]);
+              }
+              return output;
+            });
+            clientRef.current?.sendToolResponse(responses);
+          },
           onInterrupted: () => {
             stopPlayback();
             currentTextRef.current = "";
@@ -146,6 +179,7 @@ export function useLiveSession() {
           onError: (err) => {
             if (clientRef.current !== client) return;
             console.error("Live session error:", err);
+            watchdogRef.current?.stop();
             stopMic();
             stopCamera();
             stopPlayback();
@@ -165,6 +199,7 @@ export function useLiveSession() {
           },
           onClose: () => {
             if (clientRef.current !== client) return;
+            watchdogRef.current?.stop();
             stopMic();
             stopCamera();
             stopPlayback();
@@ -187,6 +222,7 @@ export function useLiveSession() {
           onGoAway: () => {
             if (!client || clientRef.current !== client) return;
             goAwayTriggeredRef.current = true;
+            watchdogRef.current?.stop();
             stopMic();
             stopCamera();
             stopPlayback();
@@ -207,6 +243,7 @@ export function useLiveSession() {
         const systemPrompt = buildSystemPrompt();
         await client.connect({
           resumptionHandle: resumptionHandleRef.current,
+          tools: [{ functionDeclarations: toolDeclarations }],
         });
 
         // 5. Connection confirmed — inject system instruction as fallback
@@ -215,6 +252,40 @@ export function useLiveSession() {
           return;
         }
         client.sendSystemInstruction(systemPrompt);
+
+        // 6. Start watchdog timer
+        watchdogRef.current?.stop();
+        watchdogRef.current = new WatchdogTimer({
+          nudgeDelayMs: WATCHDOG_NUDGE_MS,
+          reconnectDelayMs: WATCHDOG_RECONNECT_MS,
+          onNudge: () => {
+            clientRef.current?.sendText(
+              "[System: The user has been silent for a while. Check in with them — " +
+              "ask if they need help or are ready for the next step.]"
+            );
+          },
+          onReconnect: () => {
+            if (clientRef.current?.isConnected) {
+              // Force a reconnect by disconnecting — the onClose handler
+              // will trigger scheduleReconnect if appropriate
+              console.warn("Watchdog: AI unresponsive for 30s, forcing reconnect");
+              watchdogRef.current?.stop();
+              const prevClient = clientRef.current;
+              clientRef.current = null;
+              prevClient.disconnect();
+              scheduleReconnect();
+            }
+          },
+        });
+        watchdogRef.current.start();
+
+        // 7. After reconnect, prompt AI to recover workflow state
+        if (isReconnect && workflowEngineRef.current.getCurrentStepId()) {
+          client.sendText(
+            "[System: Session reconnected. Call get_current_step() to recover your place in the workflow.]"
+          );
+        }
+
         setStatus("connected");
         wasConnectedRef.current = true;
         setAiState("listening");
@@ -341,6 +412,7 @@ export function useLiveSession() {
       reconnectTimeoutRef.current = null;
     }
 
+    watchdogRef.current?.stop();
     connectAttemptRef.current++;
     stopMic();
     stopCamera();
@@ -373,6 +445,7 @@ export function useLiveSession() {
     return () => {
       unmountedRef.current = true;
       resumptionHandleRef.current = undefined;
+      watchdogRef.current?.stop();
       if (reconnectTimeoutRef.current) {
         clearTimeout(reconnectTimeoutRef.current);
         reconnectTimeoutRef.current = null;
@@ -400,5 +473,6 @@ export function useLiveSession() {
     toggleCamera,
     showReconnectToast,
     dismissReconnectToast,
+    workflowProgress,
   };
 }

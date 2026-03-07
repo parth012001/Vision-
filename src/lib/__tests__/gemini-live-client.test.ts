@@ -8,6 +8,7 @@ let mockSession: {
   close: ReturnType<typeof vi.fn>;
   sendRealtimeInput: ReturnType<typeof vi.fn>;
   sendClientContent: ReturnType<typeof vi.fn>;
+  sendToolResponse: ReturnType<typeof vi.fn>;
 };
 let connectResolve: (session: typeof mockSession) => void;
 let connectReject: (err: Error) => void;
@@ -40,6 +41,7 @@ function createMockSession() {
     close: vi.fn(),
     sendRealtimeInput: vi.fn(),
     sendClientContent: vi.fn(),
+    sendToolResponse: vi.fn(),
   };
 }
 
@@ -60,6 +62,7 @@ describe("GeminiLiveClient", () => {
       onOpen: vi.fn(),
       onGoAway: vi.fn(),
       onSessionResumptionUpdate: vi.fn(),
+      onToolCall: vi.fn(),
     };
   });
 
@@ -461,6 +464,92 @@ describe("GeminiLiveClient", () => {
         },
       });
       expect(handlers.onSessionResumptionUpdate).not.toHaveBeenCalled();
+    });
+  });
+
+  describe("toolCall handling", () => {
+    async function createConnectedClient() {
+      const client = new GeminiLiveClient("test-token", handlers);
+      const connectPromise = client.connect({ systemInstruction: "system prompt" });
+      capturedCallbacks.onopen();
+      connectResolve(mockSession);
+      await connectPromise;
+      return client;
+    }
+
+    it("fires onToolCall with parsed function calls", async () => {
+      await createConnectedClient();
+      capturedCallbacks.onmessage({
+        toolCall: {
+          functionCalls: [
+            { name: "advance_step", args: { step_id: "weigh_beans" }, id: "call-1" },
+          ],
+        },
+      });
+      expect(handlers.onToolCall).toHaveBeenCalledWith([
+        { name: "advance_step", args: { step_id: "weigh_beans" }, id: "call-1" },
+      ]);
+    });
+
+    it("handles function calls with no args", async () => {
+      await createConnectedClient();
+      capturedCallbacks.onmessage({
+        toolCall: {
+          functionCalls: [
+            { name: "get_current_step", id: "call-2" },
+          ],
+        },
+      });
+      expect(handlers.onToolCall).toHaveBeenCalledWith([
+        { name: "get_current_step", args: {}, id: "call-2" },
+      ]);
+    });
+
+    it("does not fire onToolCall for messages without toolCall", async () => {
+      await createConnectedClient();
+      capturedCallbacks.onmessage({
+        serverContent: { turnComplete: true },
+      });
+      expect(handlers.onToolCall).not.toHaveBeenCalled();
+    });
+  });
+
+  describe("sendToolResponse", () => {
+    it("sends tool response when connected", async () => {
+      const client = new GeminiLiveClient("test-token", handlers);
+      const p = client.connect({ systemInstruction: "system prompt" });
+      capturedCallbacks.onopen();
+      connectResolve(mockSession);
+      await p;
+
+      const responses = [{ id: "call-1", response: { success: true } }];
+      client.sendToolResponse(responses);
+      expect(mockSession.sendToolResponse).toHaveBeenCalledWith({
+        functionResponses: responses,
+      });
+    });
+
+    it("silently no-ops sendToolResponse when disconnected", () => {
+      const client = new GeminiLiveClient("test-token", handlers);
+      client.sendToolResponse([{ id: "call-1", response: { success: true } }]);
+      expect(mockSession.sendToolResponse).not.toHaveBeenCalled();
+    });
+  });
+
+  describe("tools in connect config", () => {
+    it("passes tools through to SDK config", () => {
+      const client = new GeminiLiveClient("test-token", handlers);
+      const tools = [{ functionDeclarations: [{ name: "test_fn" }] }];
+      client.connect({ systemInstruction: "system prompt", tools });
+
+      expect(capturedConnectArg.config.tools).toEqual(tools);
+    });
+
+    it("omits tools when not provided", () => {
+      const client = new GeminiLiveClient("test-token", handlers);
+      client.connect({ systemInstruction: "system prompt" });
+
+      expect(capturedConnectArg.config.tools).toBeUndefined();
     });
   });
 
