@@ -54,6 +54,8 @@ The browser connects **directly** to Gemini's WebSocket. No backend relay. `/api
 
 **`hooks/useSnapAnalyze.ts`** — Captures high-res still, POSTs to `/api/analyze`, manages bottom sheet state.
 
+**`lib/event-collector.ts`** — Client-side observability event batcher. Buffers `SessionEvent`s and flushes via `fetch` (keepalive) at a threshold (10 events) or on a 30s timer. Uses `pagehide`/`visibilitychange` listeners for page-close flushes and `sendBeacon` on `destroy()` with fetch fallback. Single retry on network or non-2xx failure. Typed via `EventDataMap` discriminated union — `track()` is generic and enforces correct payload per event name at compile time.
+
 **`knowledge/`** — Domain knowledge injected as system instruction at connection time. Located at `src/knowledge/` with subdirectories: `equipment/` (EG-1 specs, grind settings, GS3 specs, visual recognition), `personality/` (system-prompt.ts), `workflows/` (EG-1 workflow). `system-prompt.ts` assembles role + personality + all knowledge modules + function-calling instructions into one string. Gemini's 1M context window fits everything inline.
 
 ### Components
@@ -69,6 +71,12 @@ All components are presentational — logic lives in hooks.
 | `TranscriptOverlay.tsx` | Scrolling transcript of AI speech |
 | `ReconnectToast.tsx` | Green toast shown after successful auto-reconnect |
 | `SnapAnalyzeSheet.tsx` | Bottom sheet for snap & analyze results |
+
+### Observability (Phase 1)
+
+Client-side event collection with server-side console sink. `EventCollector` is created per session in `useLiveSession.connect()` and destroyed on unmount. Tracks session lifecycle events: `session.started`, `session.connected`, `session.disconnected` (reasons: user/error/goaway/watchdog/close), `session.reconnecting`, `session.reconnected`, `session.error`. Each session gets a stable `sessionId`; each WebSocket lifecycle gets a unique `traceId`. Events POST to `/api/events` which validates and logs structured JSON. Phase 2 replaces the console sink with Langfuse.
+
+**Key types (`types/events.ts`):** `EventName` (union of all event names), `EventDataMap` (discriminated map enforcing payload shape per event), `SessionEvent<E>` (generic event envelope), `ReconnectReason` (`Exclude<DisconnectReason, "user">`).
 
 ### Snap & Analyze
 
@@ -92,6 +100,7 @@ The `@google/genai` SDK expects `{ data: base64string, mimeType: string }` plain
 - **`onError`/`onClose` handlers check `clientRef.current === client`** before teardown to avoid killing a newer session from a stale socket callback
 - **Audio/video send methods guard on `this.connected && this.session`** — silently no-op if connection is down
 - **State machine enforces step ordering** — model calls `advance_step()` via function calling; handler validates prerequisites before allowing progression
+- **EventCollector is fire-and-forget** — `track()` never blocks the main thread; `sendEvents` uses `.then()/.catch()` chains, not `await`
 - Components are purely presentational; all logic lives in hooks
 - Path alias: `@/*` maps to `./src/*`
 
