@@ -326,6 +326,7 @@ export function useLiveSession() {
         }
 
         setStatus("connected");
+        terminalEventRecordedRef.current = false;
         collectorRef.current?.track("session.connected", {
           connectionDurationMs: Date.now() - connectStartTime,
           isReconnect,
