@@ -16,7 +16,7 @@ Type-check with `npx tsc --noEmit`.
 
 ## Environment
 
-Requires `.env.local` with `GEMINI_API_KEY` (Google AI Studio key).
+Requires `.env.local` with `GEMINI_API_KEY` (Google AI Studio key). Optional: `LANGFUSE_PUBLIC_KEY` and `LANGFUSE_SECRET_KEY` for Langfuse observability (app works without them — events log to console only).
 
 ## Architecture
 
@@ -72,9 +72,13 @@ All components are presentational — logic lives in hooks.
 | `ReconnectToast.tsx` | Green toast shown after successful auto-reconnect |
 | `SnapAnalyzeSheet.tsx` | Bottom sheet for snap & analyze results |
 
-### Observability (Phase 1)
+### Observability
 
-Client-side event collection with server-side console sink. `EventCollector` is created per session in `useLiveSession.connect()` and destroyed on unmount. Tracks session lifecycle events: `session.started`, `session.connected`, `session.disconnected` (reasons: user/error/goaway/watchdog/close), `session.reconnecting`, `session.reconnected`, `session.error`. Each session gets a stable `sessionId`; each WebSocket lifecycle gets a unique `traceId`. Events POST to `/api/events` which validates and logs structured JSON. Phase 2 replaces the console sink with Langfuse.
+Client-side event collection with server-side Langfuse ingestion. `EventCollector` is created per session in `useLiveSession.connect()` and destroyed on unmount. Tracks session lifecycle events: `session.started`, `session.connected`, `session.disconnected` (reasons: user/error/goaway/watchdog/close), `session.reconnecting`, `session.reconnected`, `session.error`. Each session gets a stable `sessionId`; each WebSocket lifecycle gets a unique `traceId`. Events POST to `/api/events` which validates, logs structured JSON, and ingests to Langfuse via `after()`.
+
+**`lib/langfuse.ts`** — Singleton `Langfuse` client (v3 direct API, not v4 OTel). Returns `null` if `LANGFUSE_PUBLIC_KEY`/`LANGFUSE_SECRET_KEY` env vars are missing (graceful degradation). Uses v3 because our batch-reconstruction use case (pre-recorded events with custom trace IDs and timestamps) doesn't fit v4's live-instrumentation model.
+
+**`lib/langfuse-ingest.ts`** — `ingestEventsToLangfuse()` groups events by `traceId`, upserts Langfuse traces with `sessionId`, creates observations with custom timestamps and level mapping. Unmapped events (Phase 2B: `ai.*`, `workflow.*`, `connection.*`) are silently skipped.
 
 **Key types (`types/events.ts`):** `EventName` (union of all event names), `EventDataMap` (discriminated map enforcing payload shape per event), `SessionEvent<E>` (generic event envelope), `ReconnectReason` (`Exclude<DisconnectReason, "user">`).
 
