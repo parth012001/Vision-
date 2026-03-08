@@ -150,6 +150,18 @@ export function useLiveSession() {
       const connectStartTime = Date.now();
       if (isReconnect) {
         collectorRef.current?.setTraceId(crypto.randomUUID());
+        // Flush stale nudge as failed before resetting per-connection state
+        if (nudgeSentAtRef.current > 0) {
+          collectorRef.current?.track("ai.nudge_result", {
+            modelResponded: false,
+            responseDelayMs: Date.now() - nudgeSentAtRef.current,
+          });
+          nudgeSentAtRef.current = 0;
+        }
+        // Reset per-connection state (workflow refs persist across reconnects)
+        turnStartTimeRef.current = 0;
+        turnIndexRef.current = 0;
+        lastStepAdvanceTimeRef.current = 0;
       }
 
       try {
