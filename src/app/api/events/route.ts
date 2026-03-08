@@ -1,4 +1,6 @@
-import { NextRequest, NextResponse } from "next/server";
+import { NextRequest, NextResponse, after } from "next/server";
+import { ingestEventsToLangfuse } from "@/lib/langfuse-ingest";
+import type { SessionEvent } from "@/types/events";
 
 export async function POST(request: NextRequest) {
   try {
@@ -56,6 +58,14 @@ export async function POST(request: NextRequest) {
         })
       );
     }
+
+    after(async () => {
+      try {
+        await ingestEventsToLangfuse(events as SessionEvent[]);
+      } catch (err) {
+        console.error("[langfuse] Ingestion failed:", err);
+      }
+    });
 
     return NextResponse.json({ received: events.length });
   } catch {
