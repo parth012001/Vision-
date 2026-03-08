@@ -23,7 +23,7 @@ import {
 import { WatchdogTimer } from "@/lib/watchdog";
 import { EventCollector } from "@/lib/event-collector";
 import type { SessionStatus, AIState, TranscriptEntry } from "@/types/session";
-import type { ReconnectReason } from "@/types/events";
+import type { DisconnectReason, ReconnectReason } from "@/types/events";
 import type { StepGuidancePayload } from "@/lib/state-machine";
 
 function sleep(ms: number) {
@@ -66,6 +66,13 @@ export function useLiveSession() {
   const sessionIdRef = useRef("");
   const sessionStartTimeRef = useRef(0);
   const terminalEventRecordedRef = useRef(false);
+  const turnStartTimeRef = useRef(0);
+  const turnIndexRef = useRef(0);
+  const nudgeSentAtRef = useRef(0);
+  const workflowStartedRef = useRef(false);
+  const workflowStartTimeRef = useRef(0);
+  const lastStepAdvanceTimeRef = useRef(0);
+  const stepsRejectedCountRef = useRef(0);
 
   const {
     playChunk,
@@ -112,6 +119,26 @@ export function useLiveSession() {
     setShowReconnectToast(false);
   }, []);
 
+  const checkNudgeResponse = useCallback(() => {
+    if (nudgeSentAtRef.current > 0) {
+      collectorRef.current?.track("ai.nudge_result", {
+        modelResponded: true,
+        responseDelayMs: Date.now() - nudgeSentAtRef.current,
+      });
+      nudgeSentAtRef.current = 0;
+    }
+  }, []);
+
+  const trackWorkflowAbandoned = useCallback((reason: DisconnectReason) => {
+    if (!workflowStartedRef.current) return;
+    if (workflowEngineRef.current.isWorkflowComplete()) return;
+    collectorRef.current?.track("workflow.abandoned", {
+      lastCompletedStep: workflowEngineRef.current.getCurrentStepId(),
+      totalSteps: Object.keys(workflowEngineRef.current.exportState().steps).length,
+      reason,
+    });
+  }, []);
+
   // Shared connect logic used by both user-initiated connect and auto-reconnect.
   // `isReconnect` controls whether status is set to "connecting" vs "reconnecting".
   const connectInner = useCallback(
@@ -152,14 +179,33 @@ export function useLiveSession() {
           onOpen: () => {},
           onAudio: (base64Pcm) => {
             watchdogRef.current?.kick();
+            checkNudgeResponse();
+            if (!turnStartTimeRef.current) {
+              turnStartTimeRef.current = Date.now();
+            }
             playChunk(base64Pcm);
           },
           onText: (text) => {
             watchdogRef.current?.kick();
+            checkNudgeResponse();
+            if (!turnStartTimeRef.current) {
+              turnStartTimeRef.current = Date.now();
+            }
             currentTextRef.current += text;
           },
           onTurnComplete: () => {
             watchdogRef.current?.kick();
+            checkNudgeResponse();
+            turnIndexRef.current++;
+            collectorRef.current?.track("ai.turn_complete", {
+              transcriptText: currentTextRef.current,
+              turnDurationMs: turnStartTimeRef.current
+                ? Date.now() - turnStartTimeRef.current
+                : 0,
+              turnIndex: turnIndexRef.current,
+            });
+            turnStartTimeRef.current = 0;
+
             if (currentTextRef.current) {
               addTranscriptEntry("model", currentTextRef.current);
               currentTextRef.current = "";
@@ -177,8 +223,51 @@ export function useLiveSession() {
           },
           onToolCall: (functionCalls) => {
             watchdogRef.current?.kick();
+            checkNudgeResponse();
             const responses = functionCalls.map((fc) => {
               const output = handleFunctionCall(workflowEngineRef.current, fc);
+
+              if (fc.name === "advance_step") {
+                if (output.response.success) {
+                  const now = Date.now();
+                  const stepId = fc.args.step_id as string;
+
+                  if (!workflowStartedRef.current) {
+                    workflowStartedRef.current = true;
+                    workflowStartTimeRef.current = now;
+                    collectorRef.current?.track("workflow.started", {
+                      workflowId: workflowEngineRef.current.exportState().graphId,
+                    });
+                  }
+
+                  const timeOnPrevious = lastStepAdvanceTimeRef.current > 0
+                    ? now - lastStepAdvanceTimeRef.current
+                    : 0;
+                  lastStepAdvanceTimeRef.current = now;
+                  collectorRef.current?.track("workflow.step_advanced", {
+                    stepId,
+                    timeOnPreviousStepMs: timeOnPrevious,
+                  });
+
+                  if (workflowEngineRef.current.isWorkflowComplete()) {
+                    collectorRef.current?.track("workflow.completed", {
+                      totalSteps: Object.keys(workflowEngineRef.current.exportState().steps).length,
+                      totalDurationMs: now - workflowStartTimeRef.current,
+                      stepsRejectedCount: stepsRejectedCountRef.current,
+                    });
+                  }
+                } else {
+                  const data = output.response.data as { unmetSteps?: string[] } | undefined;
+                  if (data?.unmetSteps) {
+                    stepsRejectedCountRef.current++;
+                    collectorRef.current?.track("workflow.step_rejected", {
+                      attemptedStepId: fc.args.step_id as string,
+                      missingPrerequisites: data.unmetSteps,
+                    });
+                  }
+                }
+              }
+
               // Update progress state if the response contains it
               const data = output.response.data as Record<string, unknown> | undefined;
               if (output.response.success && data && "progress" in data) {
@@ -189,6 +278,12 @@ export function useLiveSession() {
             clientRef.current?.sendToolResponse(responses);
           },
           onInterrupted: () => {
+            collectorRef.current?.track("ai.interrupted", {
+              modelOutputDurationMs: turnStartTimeRef.current
+                ? Date.now() - turnStartTimeRef.current
+                : 0,
+            });
+            turnStartTimeRef.current = 0;
             stopPlayback();
             currentTextRef.current = "";
             setAiState("listening");
@@ -196,6 +291,10 @@ export function useLiveSession() {
           onError: (err) => {
             if (clientRef.current !== client) return;
             console.error("Live session error:", err);
+            collectorRef.current?.track("connection.websocket_error", {
+              errorMessage: err.message,
+            });
+            trackWorkflowAbandoned("error");
             collectorRef.current?.track("session.error", {
               errorMessage: err.message,
               sessionAgeMs: Date.now() - sessionStartTimeRef.current,
@@ -225,6 +324,7 @@ export function useLiveSession() {
           },
           onClose: () => {
             if (clientRef.current !== client) return;
+            trackWorkflowAbandoned("close");
             collectorRef.current?.track("session.disconnected", {
               reason: "close" as const,
               sessionDurationMs: Date.now() - sessionStartTimeRef.current,
@@ -250,8 +350,12 @@ export function useLiveSession() {
           onSessionResumptionUpdate: (handle, resumable) => {
             resumptionHandleRef.current = resumable ? handle : undefined;
           },
-          onGoAway: () => {
+          onGoAway: (timeLeftMs: number) => {
             if (!client || clientRef.current !== client) return;
+            collectorRef.current?.track("connection.goaway_received", {
+              timeLeftMs,
+            });
+            trackWorkflowAbandoned("goaway");
             collectorRef.current?.track("session.disconnected", {
               reason: "goaway" as const,
               sessionDurationMs: Date.now() - sessionStartTimeRef.current,
@@ -295,6 +399,13 @@ export function useLiveSession() {
           nudgeDelayMs: WATCHDOG_NUDGE_MS,
           reconnectDelayMs: WATCHDOG_RECONNECT_MS,
           onNudge: () => {
+            collectorRef.current?.track("ai.silence_detected", {
+              silenceDurationMs: WATCHDOG_NUDGE_MS,
+            });
+            collectorRef.current?.track("ai.nudge_sent", {
+              silenceDurationMs: WATCHDOG_NUDGE_MS,
+            });
+            nudgeSentAtRef.current = Date.now();
             clientRef.current?.sendText(
               "[System: The user has been silent for a while. Check in with them — " +
               "ask if they need help or are ready for the next step.]"
@@ -303,6 +414,14 @@ export function useLiveSession() {
           onReconnect: () => {
             if (clientRef.current?.isConnected) {
               console.warn("Watchdog: AI unresponsive for 30s, forcing reconnect");
+              if (nudgeSentAtRef.current > 0) {
+                collectorRef.current?.track("ai.nudge_result", {
+                  modelResponded: false,
+                  responseDelayMs: Date.now() - nudgeSentAtRef.current,
+                });
+                nudgeSentAtRef.current = 0;
+              }
+              trackWorkflowAbandoned("watchdog");
               collectorRef.current?.track("session.disconnected", {
                 reason: "watchdog" as const,
                 sessionDurationMs: Date.now() - sessionStartTimeRef.current,
@@ -376,6 +495,8 @@ export function useLiveSession() {
       stopMic,
       stopCamera,
       cleanupAudio,
+      checkNudgeResponse,
+      trackWorkflowAbandoned,
     ]
   );
 
@@ -449,6 +570,14 @@ export function useLiveSession() {
     const collector = new EventCollector({ sessionId });
     collector.setTraceId(crypto.randomUUID());
     collectorRef.current = collector;
+    turnStartTimeRef.current = 0;
+    turnIndexRef.current = 0;
+    nudgeSentAtRef.current = 0;
+    workflowStartedRef.current = false;
+    workflowStartTimeRef.current = 0;
+    lastStepAdvanceTimeRef.current = 0;
+    stepsRejectedCountRef.current = 0;
+
     collector.track("session.started", {
       userAgent: navigator.userAgent,
       deviceType: detectDeviceType(),
@@ -470,6 +599,7 @@ export function useLiveSession() {
 
   const disconnect = useCallback(() => {
     userDisconnectedRef.current = true;
+    trackWorkflowAbandoned("user");
     collectorRef.current?.track("session.disconnected", {
       reason: "user" as const,
       sessionDurationMs: Date.now() - sessionStartTimeRef.current,
@@ -496,7 +626,7 @@ export function useLiveSession() {
     currentTextRef.current = "";
     setStatus("disconnected");
     setAiState("idle");
-  }, [stopMic, stopCamera, stopPlayback, cleanupAudio]);
+  }, [stopMic, stopCamera, stopPlayback, cleanupAudio, trackWorkflowAbandoned]);
 
   const toggleMic = useCallback(() => {
     setIsMicOn((prev) => {
@@ -524,6 +654,7 @@ export function useLiveSession() {
         reconnectTimeoutRef.current = null;
       }
       if (collectorRef.current && sessionStartTimeRef.current > 0 && !terminalEventRecordedRef.current) {
+        trackWorkflowAbandoned("user");
         collectorRef.current.track("session.disconnected", {
           reason: "user",
           sessionDurationMs: Date.now() - sessionStartTimeRef.current,
@@ -538,7 +669,7 @@ export function useLiveSession() {
       cleanupAudio();
       currentTextRef.current = "";
     };
-  }, [stopMic, stopCamera, cleanupAudio]);
+  }, [stopMic, stopCamera, cleanupAudio, trackWorkflowAbandoned]);
 
   return {
     status,
