@@ -36,6 +36,12 @@ export async function POST(request: NextRequest) {
           { status: 400 }
         );
       }
+      if (typeof e.traceId !== "string" || e.traceId.length === 0) {
+        return NextResponse.json(
+          { error: "Each event must have a non-empty 'traceId' string" },
+          { status: 400 }
+        );
+      }
       if (typeof e.timestamp !== "number" || !Number.isFinite(e.timestamp)) {
         return NextResponse.json(
           { error: "Each event must have a finite numeric 'timestamp'" },
