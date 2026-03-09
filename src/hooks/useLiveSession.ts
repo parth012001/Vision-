@@ -672,7 +672,7 @@ export function useLiveSession() {
         clearTimeout(reconnectTimeoutRef.current);
         reconnectTimeoutRef.current = null;
       }
-      if (collectorRef.current && sessionStartTimeRef.current > 0 && !terminalEventRecordedRef.current) {
+      if (collectorRef.current && sessionStartTimeRef.current > 0) {
         if (nudgeSentAtRef.current > 0) {
           collectorRef.current.track("ai.nudge_result", {
             modelResponded: false,
@@ -681,10 +681,12 @@ export function useLiveSession() {
           nudgeSentAtRef.current = 0;
         }
         trackWorkflowAbandoned("user");
-        collectorRef.current.track("session.disconnected", {
-          reason: "user",
-          sessionDurationMs: Date.now() - sessionStartTimeRef.current,
-        });
+        if (!terminalEventRecordedRef.current) {
+          collectorRef.current.track("session.disconnected", {
+            reason: "user",
+            sessionDurationMs: Date.now() - sessionStartTimeRef.current,
+          });
+        }
       }
       clientRef.current?.disconnect();
       clientRef.current = null;
