@@ -66,6 +66,7 @@ export function useLiveSession() {
   const sessionIdRef = useRef("");
   const sessionStartTimeRef = useRef(0);
   const terminalEventRecordedRef = useRef(false);
+  const lastDisconnectReasonRef = useRef<DisconnectReason | null>(null);
   const turnStartTimeRef = useRef(0);
   const turnIndexRef = useRef(0);
   const nudgeSentAtRef = useRef(0);
@@ -317,6 +318,7 @@ export function useLiveSession() {
               sessionDurationMs: Date.now() - sessionStartTimeRef.current,
             });
             terminalEventRecordedRef.current = true;
+            lastDisconnectReasonRef.current = "error";
             watchdogRef.current?.stop();
             stopMic();
             stopCamera();
@@ -342,6 +344,7 @@ export function useLiveSession() {
               sessionDurationMs: Date.now() - sessionStartTimeRef.current,
             });
             terminalEventRecordedRef.current = true;
+            lastDisconnectReasonRef.current = "close";
             watchdogRef.current?.stop();
             stopMic();
             stopCamera();
@@ -372,6 +375,7 @@ export function useLiveSession() {
               sessionDurationMs: Date.now() - sessionStartTimeRef.current,
             });
             terminalEventRecordedRef.current = true;
+            lastDisconnectReasonRef.current = "goaway";
             goAwayTriggeredRef.current = true;
             watchdogRef.current?.stop();
             stopMic();
@@ -437,6 +441,7 @@ export function useLiveSession() {
                 sessionDurationMs: Date.now() - sessionStartTimeRef.current,
               });
               terminalEventRecordedRef.current = true;
+              lastDisconnectReasonRef.current = "watchdog";
               watchdogRef.current?.stop();
               const prevClient = clientRef.current;
               clientRef.current = null;
@@ -456,6 +461,7 @@ export function useLiveSession() {
 
         setStatus("connected");
         terminalEventRecordedRef.current = false;
+        lastDisconnectReasonRef.current = null;
         collectorRef.current?.track("session.connected", {
           connectionDurationMs: Date.now() - connectStartTime,
           isReconnect,
@@ -574,6 +580,7 @@ export function useLiveSession() {
 
     // Initialize event collector for this session
     terminalEventRecordedRef.current = false;
+    lastDisconnectReasonRef.current = null;
     const sessionId = crypto.randomUUID();
     sessionIdRef.current = sessionId;
     sessionStartTimeRef.current = Date.now();
@@ -624,6 +631,7 @@ export function useLiveSession() {
       sessionDurationMs: Date.now() - sessionStartTimeRef.current,
     });
     terminalEventRecordedRef.current = true;
+    lastDisconnectReasonRef.current = "user";
     collectorRef.current?.flush();
     wasConnectedRef.current = false;
     resumptionHandleRef.current = undefined;
@@ -680,10 +688,10 @@ export function useLiveSession() {
           });
           nudgeSentAtRef.current = 0;
         }
-        trackWorkflowAbandoned("user");
+        trackWorkflowAbandoned(lastDisconnectReasonRef.current ?? "user");
         if (!terminalEventRecordedRef.current) {
           collectorRef.current.track("session.disconnected", {
-            reason: "user",
+            reason: lastDisconnectReasonRef.current ?? "user",
             sessionDurationMs: Date.now() - sessionStartTimeRef.current,
           });
         }
