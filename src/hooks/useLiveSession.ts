@@ -73,6 +73,7 @@ export function useLiveSession() {
   const workflowStartTimeRef = useRef(0);
   const lastStepAdvanceTimeRef = useRef(0);
   const stepsRejectedCountRef = useRef(0);
+  const workflowAbandonedRef = useRef(false);
 
   const {
     playChunk,
@@ -131,7 +132,9 @@ export function useLiveSession() {
 
   const trackWorkflowAbandoned = useCallback((reason: DisconnectReason) => {
     if (!workflowStartedRef.current) return;
+    if (workflowAbandonedRef.current) return;
     if (workflowEngineRef.current.isWorkflowComplete()) return;
+    workflowAbandonedRef.current = true;
     collectorRef.current?.track("workflow.abandoned", {
       lastCompletedStep: workflowEngineRef.current.getCurrentStepId(),
       totalSteps: Object.keys(workflowEngineRef.current.exportState().steps).length,
@@ -161,7 +164,6 @@ export function useLiveSession() {
         // Reset per-connection state (workflow refs persist across reconnects)
         turnStartTimeRef.current = 0;
         turnIndexRef.current = 0;
-        lastStepAdvanceTimeRef.current = 0;
       }
 
       try {
@@ -306,7 +308,6 @@ export function useLiveSession() {
             collectorRef.current?.track("connection.websocket_error", {
               errorMessage: err.message,
             });
-            trackWorkflowAbandoned("error");
             collectorRef.current?.track("session.error", {
               errorMessage: err.message,
               sessionAgeMs: Date.now() - sessionStartTimeRef.current,
@@ -336,7 +337,6 @@ export function useLiveSession() {
           },
           onClose: () => {
             if (clientRef.current !== client) return;
-            trackWorkflowAbandoned("close");
             collectorRef.current?.track("session.disconnected", {
               reason: "close" as const,
               sessionDurationMs: Date.now() - sessionStartTimeRef.current,
@@ -367,7 +367,6 @@ export function useLiveSession() {
             collectorRef.current?.track("connection.goaway_received", {
               timeLeftMs,
             });
-            trackWorkflowAbandoned("goaway");
             collectorRef.current?.track("session.disconnected", {
               reason: "goaway" as const,
               sessionDurationMs: Date.now() - sessionStartTimeRef.current,
@@ -433,7 +432,6 @@ export function useLiveSession() {
                 });
                 nudgeSentAtRef.current = 0;
               }
-              trackWorkflowAbandoned("watchdog");
               collectorRef.current?.track("session.disconnected", {
                 reason: "watchdog" as const,
                 sessionDurationMs: Date.now() - sessionStartTimeRef.current,
@@ -561,12 +559,13 @@ export function useLiveSession() {
 
     // Exhausted all attempts — clear stale handle
     resumptionHandleRef.current = undefined;
+    trackWorkflowAbandoned(disconnectReason);
     if (!userDisconnectedRef.current && !unmountedRef.current) {
       setError("Connection lost. Please try again.");
       setStatus("error");
       setAiState("idle");
     }
-  }, [connectInner]);
+  }, [connectInner, trackWorkflowAbandoned]);
 
   const connect = useCallback(async () => {
     userDisconnectedRef.current = false;
@@ -589,6 +588,7 @@ export function useLiveSession() {
     workflowStartTimeRef.current = 0;
     lastStepAdvanceTimeRef.current = 0;
     stepsRejectedCountRef.current = 0;
+    workflowAbandonedRef.current = false;
 
     collector.track("session.started", {
       userAgent: navigator.userAgent,
@@ -611,6 +611,13 @@ export function useLiveSession() {
 
   const disconnect = useCallback(() => {
     userDisconnectedRef.current = true;
+    if (nudgeSentAtRef.current > 0) {
+      collectorRef.current?.track("ai.nudge_result", {
+        modelResponded: false,
+        responseDelayMs: Date.now() - nudgeSentAtRef.current,
+      });
+      nudgeSentAtRef.current = 0;
+    }
     trackWorkflowAbandoned("user");
     collectorRef.current?.track("session.disconnected", {
       reason: "user" as const,
@@ -666,6 +673,13 @@ export function useLiveSession() {
         reconnectTimeoutRef.current = null;
       }
       if (collectorRef.current && sessionStartTimeRef.current > 0 && !terminalEventRecordedRef.current) {
+        if (nudgeSentAtRef.current > 0) {
+          collectorRef.current.track("ai.nudge_result", {
+            modelResponded: false,
+            responseDelayMs: Date.now() - nudgeSentAtRef.current,
+          });
+          nudgeSentAtRef.current = 0;
+        }
         trackWorkflowAbandoned("user");
         collectorRef.current.track("session.disconnected", {
           reason: "user",
