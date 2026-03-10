@@ -56,6 +56,66 @@ export interface SessionErrorData {
   sessionAgeMs: number;
 }
 
+// AI interaction events
+export interface AiTurnCompleteData {
+  transcriptText: string;
+  turnDurationMs: number;
+  turnIndex: number;
+}
+
+export interface AiInterruptedData {
+  modelOutputDurationMs: number;
+}
+
+export interface AiSilenceDetectedData {
+  silenceDurationMs: number;
+}
+
+export interface AiNudgeSentData {
+  silenceDurationMs: number;
+}
+
+export interface AiNudgeResultData {
+  modelResponded: boolean;
+  responseDelayMs: number;
+}
+
+// Workflow events
+export interface WorkflowStartedData {
+  workflowId: string;
+}
+
+export interface WorkflowStepAdvancedData {
+  stepId: string;
+  timeOnPreviousStepMs: number;
+}
+
+export interface WorkflowStepRejectedData {
+  attemptedStepId: string;
+  missingPrerequisites: string[];
+}
+
+export interface WorkflowCompletedData {
+  totalSteps: number;
+  totalDurationMs: number;
+  stepsRejectedCount: number;
+}
+
+export interface WorkflowAbandonedData {
+  lastCompletedStep: string | null;
+  totalSteps: number;
+  reason: DisconnectReason;
+}
+
+// Connection events
+export interface ConnectionGoawayReceivedData {
+  timeLeftMs: number;
+}
+
+export interface ConnectionWebsocketErrorData {
+  errorMessage: string;
+}
+
 // Discriminated event data map — enforces correct payload per event name
 export interface EventDataMap {
   "session.started": SessionStartedData;
@@ -64,19 +124,18 @@ export interface EventDataMap {
   "session.reconnecting": SessionReconnectingData;
   "session.reconnected": SessionReconnectedData;
   "session.error": SessionErrorData;
-  // Phase 3 events use generic payloads until wired
-  "ai.turn_complete": Record<string, unknown>;
-  "ai.interrupted": Record<string, unknown>;
-  "ai.silence_detected": Record<string, unknown>;
-  "ai.nudge_sent": Record<string, unknown>;
-  "ai.nudge_result": Record<string, unknown>;
-  "workflow.started": Record<string, unknown>;
-  "workflow.step_advanced": Record<string, unknown>;
-  "workflow.step_rejected": Record<string, unknown>;
-  "workflow.completed": Record<string, unknown>;
-  "workflow.abandoned": Record<string, unknown>;
-  "connection.goaway_received": Record<string, unknown>;
-  "connection.websocket_error": Record<string, unknown>;
+  "ai.turn_complete": AiTurnCompleteData;
+  "ai.interrupted": AiInterruptedData;
+  "ai.silence_detected": AiSilenceDetectedData;
+  "ai.nudge_sent": AiNudgeSentData;
+  "ai.nudge_result": AiNudgeResultData;
+  "workflow.started": WorkflowStartedData;
+  "workflow.step_advanced": WorkflowStepAdvancedData;
+  "workflow.step_rejected": WorkflowStepRejectedData;
+  "workflow.completed": WorkflowCompletedData;
+  "workflow.abandoned": WorkflowAbandonedData;
+  "connection.goaway_received": ConnectionGoawayReceivedData;
+  "connection.websocket_error": ConnectionWebsocketErrorData;
 }
 
 export interface SessionEvent<E extends EventName = EventName> {

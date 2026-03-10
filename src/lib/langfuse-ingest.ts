@@ -10,6 +10,21 @@ const OBSERVATION_MAP: Partial<
   "session.reconnecting": { name: "reconnect-attempt", level: "WARNING" },
   "session.reconnected": { name: "reconnect-success", level: "DEFAULT" },
   "session.error": { name: "session-error", level: "ERROR" },
+  // AI interaction
+  "ai.turn_complete": { name: "ai-turn-complete", level: "DEFAULT" },
+  "ai.interrupted": { name: "ai-interrupted", level: "DEFAULT" },
+  "ai.silence_detected": { name: "ai-silence-detected", level: "WARNING" },
+  "ai.nudge_sent": { name: "ai-nudge-sent", level: "WARNING" },
+  "ai.nudge_result": { name: "ai-nudge-result", level: "DEFAULT" },
+  // Workflow
+  "workflow.started": { name: "workflow-started", level: "DEFAULT" },
+  "workflow.step_advanced": { name: "workflow-step-advanced", level: "DEFAULT" },
+  "workflow.step_rejected": { name: "workflow-step-rejected", level: "WARNING" },
+  "workflow.completed": { name: "workflow-completed", level: "DEFAULT" },
+  "workflow.abandoned": { name: "workflow-abandoned", level: "WARNING" },
+  // Connection health
+  "connection.goaway_received": { name: "connection-goaway", level: "WARNING" },
+  "connection.websocket_error": { name: "connection-ws-error", level: "ERROR" },
 };
 
 export async function ingestEventsToLangfuse(
