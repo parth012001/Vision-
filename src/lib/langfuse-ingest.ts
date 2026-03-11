@@ -31,7 +31,10 @@ export async function ingestEventsToLangfuse(
   events: SessionEvent[]
 ): Promise<void> {
   const langfuse = getLangfuse();
-  if (!langfuse) return;
+  if (!langfuse) {
+    console.warn("[langfuse] Client not available — skipping ingestion of", events.length, "events");
+    return;
+  }
 
   const byTrace = new Map<string, SessionEvent[]>();
   for (const event of events) {
@@ -62,4 +65,5 @@ export async function ingestEventsToLangfuse(
   }
 
   await langfuse.flushAsync();
+  console.log("[langfuse] Flushed", events.length, "events across", byTrace.size, "traces");
 }
