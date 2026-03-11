@@ -5,7 +5,6 @@ import { GeminiLiveClient } from "@/lib/gemini-live-client";
 import { useAudioCapture } from "./useAudioCapture";
 import { useAudioPlayback } from "./useAudioPlayback";
 import { useCameraCapture } from "./useCameraCapture";
-import { buildSystemPrompt } from "@/knowledge/personality/system-prompt";
 import { captureFrame } from "@/lib/camera-utils";
 import {
   RECONNECT_MAX_ATTEMPTS,
@@ -392,21 +391,18 @@ export function useLiveSession() {
         clientRef.current = client;
 
         // 4. Connect and wait for WebSocket to be fully open
-        // System prompt is baked into the ephemeral token server-side.
-        // We also inject it mid-session as a fallback in case the
-        // constrained endpoint doesn't propagate it.
-        const systemPrompt = buildSystemPrompt();
+        // System prompt is baked into the ephemeral token server-side
+        // via liveConnectConstraints — no need to send it again.
         await client.connect({
           resumptionHandle: resumptionHandleRef.current,
           tools: [{ functionDeclarations: toolDeclarations }],
         });
 
-        // 5. Connection confirmed — inject system instruction as fallback
+        // 5. Connection confirmed — verify not stale
         if (clientRef.current !== client) {
           client.disconnect();
           return;
         }
-        client.sendSystemInstruction(systemPrompt);
 
         // 6. Start watchdog timer
         watchdogRef.current?.stop();
